@@ -298,7 +298,8 @@ legend { font-family: var(--display); font-size: 1.3rem; font-weight: 600; paddi
 }
 .rt:first-child { margin-top: 8px; }
 
-.rt-info { display: grid; gap: 6px; }
+.rt-info { display: flex; gap: 16px; align-items: flex-start; }
+.rt-info-text { display: grid; gap: 6px; min-width: 0; }
 .rt-info .desc { color: var(--muted); max-width: 44ch; }
 .rt-info .price { font-weight: 600; }
 
@@ -467,12 +468,20 @@ tr:last-child td { border-bottom: 0; }
 
 details {
   background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   margin-bottom: 10px;
   padding: 4px 16px;
 }
+details[open] { border-color: var(--primary); }
 summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+summary:hover { color: var(--primary); }
 details .tbl-wrap { margin-bottom: 12px; border: 1px solid var(--line); }
+details table { font-variant-numeric: tabular-nums; }
+details th { position: sticky; top: 0; }
+details tbody tr:nth-child(even) { background: #f8f9fc; }
+details tbody tr:hover { background: #eef0fd; }
+details td:first-child, details th:first-child { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88rem; color: var(--muted); }
 
 /* ---------- Footer ---------- */
 
@@ -552,17 +561,24 @@ details .tbl-wrap { margin-bottom: 12px; border: 1px solid var(--line); }
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
-.modal-photo {
+
+.room-photo {
   aspect-ratio: 4 / 3;
   border-radius: var(--radius);
-  background: linear-gradient(135deg, #dde1f6, #eef0fd);
-  color: var(--primary-dark);
-  display: grid;
-  place-items: center;
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 0.95rem;
+  overflow: hidden;
+  line-height: 0;
 }
+.room-photo svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.rt-thumb {
+  width: 96px;
+  flex: none;
+}
+.rt-thumb .room-photo { aspect-ratio: 1 / 1; border-radius: var(--radius); }
 
 .modal-facts { display: flex; gap: 8px 24px; flex-wrap: wrap; color: var(--muted); }
 .modal-facts strong { color: var(--ink); }

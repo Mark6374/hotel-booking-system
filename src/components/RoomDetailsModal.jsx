@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getDb, money } from '../db.js';
+import RoomPhoto from './RoomPhoto.jsx';
 
 export default function RoomDetailsModal({ typeId, onClose }) {
   const db = getDb();
@@ -25,10 +26,10 @@ export default function RoomDetailsModal({ typeId, onClose }) {
           <button type="button" className="modal-close" ref={closeRef} onClick={onClose} aria-label="Close">&times;</button>
         </div>
 
-        <div className="modal-gallery" aria-hidden="true">
-          <div className="modal-photo">Bed &amp; window</div>
-          <div className="modal-photo">Bathroom</div>
-          <div className="modal-photo">Room view</div>
+        <div className="modal-gallery">
+          <RoomPhoto kind="bed" typeId={t.room_type_id} label="Bed and window" />
+          <RoomPhoto kind="bath" typeId={t.room_type_id} label="Bathroom" />
+          <RoomPhoto kind="view" typeId={t.room_type_id} label="Room view" />
         </div>
 
         <p>{t.description}</p>

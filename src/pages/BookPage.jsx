@@ -3,6 +3,7 @@ import {
   getDb, validateSearch, nights, fmtDate, money, plural,
   getSelection, roomsOfType, freeRooms, blockedRoomIds
 } from '../db.js';
+import RoomPhoto from '../components/RoomPhoto.jsx';
 
 function SummaryDates({ s, n }) {
   return (
@@ -107,12 +108,17 @@ export default function BookPage({ headingRef, search, setSearch, sel, setSel, o
                 return (
                   <article className="rt" key={t.room_type_id}>
                     <div className="rt-info">
-                      <h3>{t.type_name}</h3>
-                      <p className="desc">{t.description}</p>
-                      <p className="price">
-                        Sleeps {t.capacity}. {money(t.price_per_night)} per night, {money(t.price_per_night * n)} for {plural(n, 'night', 'nights')}.
-                      </p>
-                      <button type="button" className="link-btn" onClick={() => onDetails(t.room_type_id)}>See photos and details</button>
+                      <div className="rt-thumb">
+                        <RoomPhoto kind="bed" typeId={t.room_type_id} label={t.type_name + ' room'} />
+                      </div>
+                      <div className="rt-info-text">
+                        <h3>{t.type_name}</h3>
+                        <p className="desc">{t.description}</p>
+                        <p className="price">
+                          Sleeps {t.capacity}. {money(t.price_per_night)} per night, {money(t.price_per_night * n)} for {plural(n, 'night', 'nights')}.
+                        </p>
+                        <button type="button" className="link-btn" onClick={() => onDetails(t.room_type_id)}>See photos and details</button>
+                      </div>
                     </div>
                     <div className="rt-avail">
                       <div className="segs" role="img" aria-label={`${free.length} of ${all.length} ${t.type_name} rooms free`}>
