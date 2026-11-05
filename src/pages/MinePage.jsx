@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getDb, bookingDetails, fmtDate, money, ref, todayISO, cancelBooking } from '../db.js';
 
 function StatusBadge({ status }) {
@@ -11,11 +11,17 @@ function StatusBadge({ status }) {
 
 export default function MinePage({ headingRef, session, lastEmail }) {
   const db = getDb();
-  const [manualEmail, setManualEmail] = useState(lastEmail || '');
+  const [manualEmail, setManualEmail] = useState('');
   const [looked, setLooked] = useState(false);
   const [status, setStatus] = useState('');
 
-  const email = session || (looked ? manualEmail : '');
+  // A just-completed booking's email should show up here right away, without
+  // requiring the (already-mounted) form to be resubmitted by hand.
+  useEffect(() => {
+    if (!looked) setManualEmail(lastEmail || '');
+  }, [lastEmail, looked]);
+
+  const email = session || (looked ? manualEmail : lastEmail);
 
   function lookup(e) {
     e.preventDefault();
