@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Juniper Court Hotel – Booking prototype</title>
+  <meta name="description" content="Prototype of a hotel booking system: search rooms, book, pay, and manage bookings.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="brand" href="#book" data-view="book">Juniper Court</a>
+    <nav aria-label="Main">
+      <button type="button" class="nav-btn" data-view="book">Book a room</button>
+      <button type="button" class="nav-btn" data-view="mine">My bookings</button>
+      <button type="button" class="nav-btn" data-view="staff">Staff view</button>
+    </nav>
+  </header>
+
+  <main id="main">
+
+    <!-- BOOK: search and choose rooms -->
+    <section id="view-book" class="view" aria-labelledby="book-title">
+      <div class="hero">
+        <div class="hero-copy">
+          <h1 id="book-title" tabindex="-1">Pick your dates. See exactly what's left.</h1>
+          <p>Availability is read from the same booking tables the front desk uses, so the number of rooms you see is the number we can actually give you.</p>
+        </div>
+
+        <form id="search-form" class="search" novalidate>
+          <h2>Find a room</h2>
+          <div class="field">
+            <label for="ci">Check-in</label>
+            <input type="date" id="ci" name="ci" required>
+          </div>
+          <div class="field">
+            <label for="co">Check-out</label>
+            <input type="date" id="co" name="co" required>
+          </div>
+          <div class="field">
+            <label for="guests">Guests</label>
+            <input type="number" id="guests" name="guests" min="1" max="10" value="2" required>
+          </div>
+          <p class="form-error" id="search-error" role="alert"></p>
+          <button type="submit" class="btn btn-light">Show available rooms</button>
+        </form>
+      </div>
+
+      <div class="results-wrap">
+        <div class="results-main">
+          <h2 id="results-title">Rooms</h2>
+          <ul class="legend" aria-label="Legend">
+            <li><span class="seg free" aria-hidden="true"></span>Free</li>
+            <li><span class="seg taken" aria-hidden="true"></span>Booked</li>
+            <li><span class="seg off" aria-hidden="true"></span>Closed for maintenance</li>
+          </ul>
+          <div id="results"></div>
+        </div>
+
+        <aside class="summary" aria-labelledby="summary-title">
+          <h2 id="summary-title">Your stay</h2>
+          <div id="summary-body"></div>
+          <button type="button" id="continue-btn" class="btn btn-primary" disabled>Continue to guest details</button>
+        </aside>
+      </div>
+    </section>
+
+    <!-- CHECKOUT -->
+    <section id="view-checkout" class="view" aria-labelledby="checkout-title" hidden>
+      <div class="page-head">
+        <button type="button" class="link-btn" id="back-to-book">Back to rooms</button>
+        <h1 id="checkout-title" tabindex="-1">Guest details and payment</h1>
+      </div>
+
+      <div class="checkout-grid">
+        <form id="checkout-form" novalidate>
+          <fieldset>
+            <legend>Who is staying</legend>
+            <div class="row-2">
+              <div class="field">
+                <label for="first_name">First name</label>
+                <input type="text" id="first_name" name="first_name" maxlength="50" autocomplete="given-name" aria-describedby="err-first_name">
+                <p class="field-error" id="err-first_name"></p>
+              </div>
+              <div class="field">
+                <label for="last_name">Last name</label>
+                <input type="text" id="last_name" name="last_name" maxlength="50" autocomplete="family-name" aria-describedby="err-last_name">
+                <p class="field-error" id="err-last_name"></p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" maxlength="100" autocomplete="email" aria-describedby="err-email">
+              <p class="field-error" id="err-email"></p>
+            </div>
+            <div class="field">
+              <label for="phone">Phone</label>
+              <input type="tel" id="phone" name="phone" maxlength="20" autocomplete="tel" aria-describedby="err-phone">
+              <p class="field-error" id="err-phone"></p>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>How you pay</legend>
+            <div class="radio-row" role="radiogroup" aria-describedby="err-method">
+              <label class="radio"><input type="radio" name="method" value="Card" checked> Card</label>
+              <label class="radio"><input type="radio" name="method" value="Cash"> Cash</label>
+              <label class="radio"><input type="radio" name="method" value="Transfer"> Bank transfer</label>
+            </div>
+            <p class="field-error" id="err-method"></p>
+            <div class="field" id="card-field">
+              <label for="card">Card number</label>
+              <input type="text" id="card" name="card" inputmode="numeric" autocomplete="off" placeholder="4242 4242 4242 4242" aria-describedby="card-hint err-card">
+              <p class="hint" id="card-hint">Demo only. A number ending in 0000 is declined, so you can see the booking roll back.</p>
+              <p class="field-error" id="err-card"></p>
+            </div>
+          </fieldset>
+
+          <div id="tx-failure" class="tx-box tx-fail" role="alert" hidden></div>
+          <button type="submit" class="btn btn-primary">Confirm and pay</button>
+        </form>
+
+        <aside class="summary" id="checkout-summary" aria-label="Booking summary"></aside>
+      </div>
+    </section>
+
+    <!-- CONFIRMATION -->
+    <section id="view-confirm" class="view" aria-labelledby="confirm-title" hidden>
+      <div class="page-head">
+        <h1 id="confirm-title" tabindex="-1">Booking confirmed</h1>
+      </div>
+      <div id="confirm-body"></div>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="confirm-mine">View my bookings</button>
+        <button type="button" class="btn btn-ghost" id="confirm-again">Book another stay</button>
+      </div>
+    </section>
+
+    <!-- MY BOOKINGS -->
+    <section id="view-mine" class="view" aria-labelledby="mine-title" hidden>
+      <div class="page-head">
+        <h1 id="mine-title" tabindex="-1">My bookings</h1>
+        <p class="lead">Enter the email you booked with. Try <strong>amina@example.com</strong> to see sample bookings.</p>
+      </div>
+      <form id="mine-form" class="inline-form" novalidate>
+        <div class="field">
+          <label for="mine-email">Email</label>
+          <input type="email" id="mine-email" name="email" autocomplete="email">
+        </div>
+        <button type="submit" class="btn btn-primary">Find my bookings</button>
+      </form>
+      <p class="status" id="mine-status" role="status"></p>
+      <div id="mine-results"></div>
+    </section>
+
+    <!-- STAFF -->
+    <section id="view-staff" class="view" aria-labelledby="staff-title" hidden>
+      <div class="page-head">
+        <h1 id="staff-title" tabindex="-1">Staff view</h1>
+        <p class="lead">What the front desk sees: every room for a date range, all bookings, and the raw database tables behind them. No login in this prototype.</p>
+      </div>
+
+      <form id="staff-form" class="inline-form" novalidate>
+        <div class="field">
+          <label for="staff-ci">From</label>
+          <input type="date" id="staff-ci">
+        </div>
+        <div class="field">
+          <label for="staff-co">To</label>
+          <input type="date" id="staff-co">
+        </div>
+      </form>
+      <p class="form-error dark" id="staff-error" role="alert"></p>
+
+      <h2>Rooms</h2>
+      <div id="staff-rooms" class="room-grid"></div>
+
+      <h2>Bookings</h2>
+      <div class="tbl-wrap"><table id="staff-bookings"></table></div>
+
+      <h2>Database tables</h2>
+      <p class="lead">The six tables from the database plan. Open one to see its rows.</p>
+      <div id="staff-db"></div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Prototype for the Task 9 database design. Data is saved in this browser only.</p>
+    <button type="button" class="link-btn" id="reset-demo">Reset demo data</button>
+    <p class="status" id="global-status" role="status"></p>
+  </footer>
+
+  <script src="scripts.js"></script>
+</body>
+</html>
