@@ -567,11 +567,13 @@ details td:first-child, details th:first-child { font-family: ui-monospace, "SF 
   border-radius: var(--radius);
   overflow: hidden;
   line-height: 0;
+  background: var(--paper);
 }
-.room-photo svg {
+.room-photo img {
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: cover;
 }
 
 .rt-thumb {
