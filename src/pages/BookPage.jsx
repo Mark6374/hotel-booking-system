@@ -28,7 +28,7 @@ function SummaryLines({ sel }) {
   ));
 }
 
-export default function BookPage({ headingRef, search, setSearch, sel, setSel, onContinue, onDetails }) {
+export default function BookPage({ headingRef, loggedIn, search, setSearch, sel, setSel, onContinue, onDetails }) {
   const db = getDb();
   const [ci, setCi] = useState(search.ci);
   const [co, setCo] = useState(search.co);
@@ -179,8 +179,9 @@ export default function BookPage({ headingRef, search, setSearch, sel, setSel, o
             )}
           </div>
           <button type="button" className="btn btn-primary" disabled={!selection || !selection.lines.length || !enough} onClick={onContinue}>
-            Continue to guest details
+            {loggedIn ? 'Continue to guest details' : 'Log in to continue'}
           </button>
+          {!loggedIn && <p className="hint">You need an account to book. Your room choice is kept while you log in or sign up.</p>}
         </aside>
       </div>
     </>

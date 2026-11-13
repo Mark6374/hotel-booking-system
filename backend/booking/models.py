@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 
 
@@ -7,10 +8,26 @@ class Guest(models.Model):
     last_name = models.CharField(max_length=50)
     email = models.CharField(max_length=100, unique=True)
     phone = models.CharField(max_length=20)
+    password = models.CharField(max_length=128, null=True, blank=True)
 
     class Meta:
         managed = False
         db_table = 'guest'
+
+    # Lets DRF treat a Guest as the authenticated "user".
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return bool(self.password) and check_password(raw_password, self.password)
 
 
 class RoomType(models.Model):

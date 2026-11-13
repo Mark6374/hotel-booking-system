@@ -1,11 +1,11 @@
 /* Juniper Court Hotel – booking data layer.
-   Follows the Task 9 plan: guest, room_type, room, booking, booking_room
-   (bridge table) and payment. Kept in memory and mirrored to localStorage
-   so data survives a reload. Framework-agnostic: React talks to it only
-   through the exported functions and the subscribe() pub-sub below. */
+   Tables (guest, room_type, room, booking, booking_room, payment) come from
+   the Django REST backend and are kept here as an in-memory cache.
+   Pages read the cache synchronously through getDb(); every change goes
+   to the backend first and then the cache is reloaded. */
 
-const STORAGE_KEY = 'juniper-court-db-v1';
-const SESSION_KEY = 'juniper-court-session-v1';
+import { api } from './api.js';
+
 const ACTIVE = ['Confirmed', 'CheckedIn'];
 const TABLES = ['guest', 'room_type', 'room', 'booking', 'booking_room', 'payment'];
 
@@ -33,10 +33,6 @@ export function fmtDate(iso) {
     .format(new Date(iso + 'T00:00:00Z'));
 }
 
-function nowStamp() {
-  return new Date().toISOString().slice(0, 16).replace('T', ' ');
-}
-
 export function money(n) {
   return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
@@ -45,83 +41,40 @@ export function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); 
 
 export function ref(bookingId) { return 'HB-' + String(bookingId).padStart(4, '0'); }
 
-function nextId(rows, key) {
-  return rows.reduce((max, r) => Math.max(max, r[key]), 0) + 1;
+/* ---------- Cache loaded from the API ---------- */
+
+const ENDPOINTS = {
+  guest: '/guests/',
+  room_type: '/room-types/',
+  room: '/rooms/',
+  booking: '/bookings/',
+  booking_room: '/booking-rooms/',
+  payment: '/payments/'
+};
+
+/* DRF sends foreign keys as "guest", decimals as "60.00" and datetimes with a "T".
+   Reshape rows to the column names of the SQL tables, which the pages use. */
+const num = (v) => (v == null ? v : Number(v));
+const stamp = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : v);
+const NORMALIZE = {
+  guest: (r) => r,
+  room_type: (r) => ({ ...r, price_per_night: num(r.price_per_night) }),
+  room: ({ room_type, ...r }) => ({ ...r, room_type_id: room_type }),
+  booking: ({ guest, ...r }) => ({ booking_id: r.booking_id, guest_id: guest, ...r, booking_date: stamp(r.booking_date) }),
+  booking_room: ({ booking, room, ...r }) => ({ booking_room_id: r.booking_room_id, booking_id: booking, room_id: room, ...r, price_per_night: num(r.price_per_night) }),
+  payment: ({ booking, ...r }) => ({ payment_id: r.payment_id, booking_id: booking, ...r, amount: num(r.amount), payment_date: stamp(r.payment_date) })
+};
+
+function empty() {
+  const d = { loaded: false, error: '' };
+  TABLES.forEach((t) => { d[t] = []; });
+  return d;
 }
 
-/* ---------- Seed data ---------- */
-
-function seed() {
-  return {
-    guest: [
-      { guest_id: 1, first_name: 'Amina', last_name: 'Sadykova', email: 'amina@example.com', phone: '+7 700 111 2233' },
-      { guest_id: 2, first_name: 'Daniel', last_name: 'Brooks', email: 'daniel@example.com', phone: '+44 20 7946 0101' },
-      { guest_id: 3, first_name: 'Mei', last_name: 'Tanaka', email: 'mei@example.com', phone: '+81 3 5550 0123' }
-    ],
-    room_type: [
-      { room_type_id: 1, type_name: 'Standard', capacity: 2, price_per_night: 60, description: 'Queen bed, quiet courtyard view, 24 m².' },
-      { room_type_id: 2, type_name: 'Deluxe', capacity: 3, price_per_night: 90, description: 'King bed, city view, work desk and rain shower, 32 m².' },
-      { room_type_id: 3, type_name: 'Suite', capacity: 4, price_per_night: 150, description: 'Bedroom and separate lounge with corner windows, 55 m².' }
-    ],
-    room: [
-      { room_id: 1, room_number: '101', floor: 1, status: 'Available', room_type_id: 1 },
-      { room_id: 2, room_number: '102', floor: 1, status: 'Available', room_type_id: 1 },
-      { room_id: 3, room_number: '103', floor: 1, status: 'Available', room_type_id: 1 },
-      { room_id: 4, room_number: '201', floor: 2, status: 'Available', room_type_id: 2 },
-      { room_id: 5, room_number: '202', floor: 2, status: 'Available', room_type_id: 2 },
-      { room_id: 6, room_number: '301', floor: 3, status: 'Available', room_type_id: 3 }
-    ],
-    booking: [
-      { booking_id: 1, guest_id: 1, booking_date: '2026-10-02 09:15', check_in: '2026-12-09', check_out: '2026-12-12', status: 'Confirmed' },
-      { booking_id: 2, guest_id: 2, booking_date: '2026-10-05 14:40', check_in: '2026-12-11', check_out: '2026-12-14', status: 'Confirmed' },
-      { booking_id: 3, guest_id: 1, booking_date: '2026-09-10 11:05', check_in: '2026-12-01', check_out: '2026-12-05', status: 'Completed' },
-      { booking_id: 4, guest_id: 3, booking_date: '2026-10-07 18:22', check_in: '2026-12-10', check_out: '2026-12-13', status: 'Cancelled' },
-      { booking_id: 5, guest_id: 2, booking_date: '2026-10-08 10:00', check_in: '2026-12-10', check_out: '2026-12-13', status: 'Confirmed' }
-    ],
-    booking_room: [
-      { booking_room_id: 1, booking_id: 1, room_id: 1, guests_count: 2, price_per_night: 60 },
-      { booking_room_id: 2, booking_id: 2, room_id: 4, guests_count: 2, price_per_night: 90 },
-      { booking_room_id: 3, booking_id: 3, room_id: 2, guests_count: 1, price_per_night: 60 },
-      { booking_room_id: 4, booking_id: 4, room_id: 3, guests_count: 2, price_per_night: 60 },
-      { booking_room_id: 5, booking_id: 5, room_id: 5, guests_count: 3, price_per_night: 90 }
-    ],
-    payment: [
-      { payment_id: 1, booking_id: 1, amount: 180, payment_method: 'Card', payment_status: 'Paid', payment_date: '2026-10-02 09:16' },
-      { payment_id: 2, booking_id: 2, amount: 270, payment_method: 'Card', payment_status: 'Paid', payment_date: '2026-10-05 14:41' },
-      { payment_id: 3, booking_id: 3, amount: 240, payment_method: 'Cash', payment_status: 'Paid', payment_date: '2026-09-10 11:06' },
-      { payment_id: 4, booking_id: 4, amount: 180, payment_method: 'Card', payment_status: 'Refunded', payment_date: '2026-10-07 18:23' },
-      { payment_id: 5, booking_id: 5, amount: 270, payment_method: 'Transfer', payment_status: 'Paid', payment_date: '2026-10-08 10:02' }
-    ]
-  };
-}
-
-function isValidDb(d) {
-  return d && TABLES.every((t) => Array.isArray(d[t]));
-}
-
-function loadDb() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (isValidDb(parsed)) return parsed;
-    }
-  } catch (e) { /* storage blocked or corrupt: fall back to seed data */ }
-  const fresh = seed();
-  persist(fresh);
-  return fresh;
-}
-
-function persist(d) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch (e) { /* ignore */ }
-}
-
-let db = loadDb();
+let db = empty();
 const listeners = new Set();
 
 function notify() { listeners.forEach((fn) => fn()); }
-
-function saveDb() { persist(db); notify(); }
 
 export function subscribe(fn) {
   listeners.add(fn);
@@ -130,10 +83,31 @@ export function subscribe(fn) {
 
 export function getDb() { return db; }
 
-export function resetDb() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
-  db = seed();
-  saveDb();
+/* Fetch every table. Keeps the old cache if the server is down. */
+/* Several reloads can overlap (login, logout, page load). Only the newest one is
+   applied, so an older answer made with another account's token never wins. */
+let reloadSeq = 0;
+
+export async function reloadDb() {
+  const seq = ++reloadSeq;
+  try {
+    const rows = await Promise.all(TABLES.map((t) => api(ENDPOINTS[t])));
+    if (seq !== reloadSeq) return db;
+    const next = { loaded: true, error: '' };
+    TABLES.forEach((t, i) => { next[t] = rows[i].map(NORMALIZE[t]); });
+    db = next;
+  } catch (e) {
+    if (seq !== reloadSeq) return db;
+    db = { ...db, error: e.message };
+  }
+  notify();
+  return db;
+}
+
+/* Admin only: wipe and re-seed the demo data on the server. */
+export async function resetDb() {
+  await api('/admin/reset-demo/', { method: 'POST' });
+  await reloadDb();
 }
 
 /* ---------- Availability ---------- */
@@ -201,136 +175,57 @@ export function bookingDetails(b) {
   return { n, total, rooms, pay };
 }
 
-/* ---------- Transaction: book rooms and pay ---------- */
+/* ---------- Transaction: book rooms and pay (runs on the server) ---------- */
 
-export function runBookingTransaction(req) {
-  const work = loadDb();
-  const snapshot = JSON.stringify(work);
-  const log = [];
-
-  function step(label, fn) {
-    try {
-      const out = fn();
-      log.push({ label, ok: true });
-      return out;
-    } catch (err) {
-      log.push({ label, ok: false, detail: err.message });
-      throw err;
-    }
-  }
-
+/* req: { ci, co, rooms: [{room_id, guests_count}], method, cardDigits, guest: {first_name, last_name, phone} } */
+export async function runBookingTransaction(req) {
   try {
-    step('Lock the chosen rooms and check they are open', () => {
-      req.rooms.forEach((r) => {
-        const row = work.room.filter((x) => x.room_id === r.room_id)[0];
-        if (!row || row.status !== 'Available') throw new Error('Room ' + r.room_number + ' is closed for maintenance.');
-      });
-    });
-
-    step('Check that no active booking overlaps these dates', () => {
-      const blocked = blockedRoomIds(work, req.ci, req.co);
-      req.rooms.forEach((r) => {
-        if (blocked[r.room_id]) throw new Error('Room ' + r.room_number + ' was just booked by someone else for overlapping dates.');
-      });
-    });
-
-    const guestId = step('Find or create the guest', () => {
-      let g = work.guest.filter((x) => x.email.toLowerCase() === req.guest.email.toLowerCase())[0];
-      if (g) {
-        g.first_name = req.guest.first_name;
-        g.last_name = req.guest.last_name;
-        g.phone = req.guest.phone;
-      } else {
-        g = {
-          guest_id: nextId(work.guest, 'guest_id'),
-          first_name: req.guest.first_name,
-          last_name: req.guest.last_name,
-          email: req.guest.email,
-          phone: req.guest.phone
-        };
-        work.guest.push(g);
-      }
-      return g.guest_id;
-    });
-
-    const bookingId = step('Insert the booking', () => {
-      const b = {
-        booking_id: nextId(work.booking, 'booking_id'),
-        guest_id: guestId,
-        booking_date: nowStamp(),
+    const r = await api('/bookings/create/', {
+      method: 'POST',
+      body: {
         check_in: req.ci,
         check_out: req.co,
-        status: 'Confirmed'
-      };
-      work.booking.push(b);
-      return b.booking_id;
-    });
-
-    step('Insert one room line for each room', () => {
-      req.rooms.forEach((r) => {
-        work.booking_room.push({
-          booking_room_id: nextId(work.booking_room, 'booking_room_id'),
-          booking_id: bookingId,
-          room_id: r.room_id,
-          guests_count: r.guests_count,
-          price_per_night: r.price
-        });
-      });
-    });
-
-    step('Insert the payment', () => {
-      if (req.method === 'Card' && /0000$/.test(req.cardDigits)) throw new Error('The bank declined this card.');
-      work.payment.push({
-        payment_id: nextId(work.payment, 'payment_id'),
-        booking_id: bookingId,
-        amount: req.total,
+        rooms: req.rooms.map((x) => ({ room_id: x.room_id, guests_count: x.guests_count })),
         payment_method: req.method,
-        payment_status: 'Paid',
-        payment_date: nowStamp()
-      });
+        card_number: req.cardDigits,
+        first_name: req.guest.first_name,
+        last_name: req.guest.last_name,
+        phone: req.guest.phone
+      }
     });
-
-    log.push({ label: 'COMMIT', ok: true, final: true, detail: 'Booking, rooms, and payment saved together.' });
-    db = work;
-    saveDb();
-    return { ok: true, bookingId, log, total: req.total };
-  } catch (err) {
-    log.push({ label: 'ROLLBACK', ok: false, final: true, detail: 'Nothing was saved, so no room is blocked without payment.' });
-    db = JSON.parse(snapshot);
-    return { ok: false, message: err.message, log };
+    await reloadDb();
+    return { ok: true, bookingId: r.booking_id, log: r.log, total: Number(r.total) };
+  } catch (e) {
+    if (e.status === 409) await reloadDb(); // someone else may have taken the room
+    return { ok: false, message: e.message, log: (e.data && e.data.log) || [] };
   }
 }
 
-export function cancelBooking(id) {
-  const b = db.booking.filter((x) => x.booking_id === id)[0];
-  if (!b || b.status !== 'Confirmed') return false;
-  b.status = 'Cancelled';
-  let refunded = false;
-  db.payment.forEach((p) => {
-    if (p.booking_id === id && p.payment_status === 'Paid') { p.payment_status = 'Refunded'; refunded = true; }
-  });
-  saveDb();
-  return refunded;
+async function post(path, body) {
+  const r = await api(path, { method: 'POST', body });
+  await reloadDb();
+  return r;
 }
 
-export function toggleRoomMaintenance(roomId) {
-  const r = db.room.filter((x) => x.room_id === roomId)[0];
-  if (!r) return;
-  r.status = r.status === 'Available' ? 'Maintenance' : 'Available';
-  saveDb();
+/* Returns true when a payment was refunded. Throws ApiError on failure. */
+export async function cancelBooking(id) {
+  const r = await post('/bookings/' + id + '/cancel/');
+  return !!r.refunded;
+}
+
+export async function checkInBooking(id) { await post('/bookings/' + id + '/check-in/'); return true; }
+export async function checkOutBooking(id) { await post('/bookings/' + id + '/check-out/'); return true; }
+export async function toggleRoomMaintenance(roomId) { await post('/rooms/' + roomId + '/maintenance/'); }
+
+export async function setRoomTypePrice(typeId, price) {
+  await api('/room-types/' + typeId + '/price/', { method: 'PATCH', body: { price_per_night: price } });
+  await reloadDb();
+  return true;
+}
+
+export function guestByEmail(d, email) {
+  if (!email) return null;
+  return d.guest.filter((x) => x.email.toLowerCase() === email.toLowerCase())[0] || null;
 }
 
 export { TABLES };
-
-/* ---------- Guest session (no-password sign-in, persists across visits) ---------- */
-
-export function loadSession() {
-  try { return localStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; }
-}
-
-export function saveSession(email) {
-  try {
-    if (email) localStorage.setItem(SESSION_KEY, email);
-    else localStorage.removeItem(SESSION_KEY);
-  } catch (e) { /* ignore */ }
-}

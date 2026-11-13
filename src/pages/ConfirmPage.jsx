@@ -1,4 +1,5 @@
 import { getDb, bookingDetails, fmtDate, money, ref } from '../db.js';
+import StatusBadge from '../components/StatusBadge.jsx';
 
 function RenderLog({ log }) {
   return (
@@ -15,14 +16,6 @@ function RenderLog({ log }) {
       ))}
     </ol>
   );
-}
-
-function StatusBadge({ status }) {
-  const cls = status === 'Confirmed' || status === 'CheckedIn' || status === 'Paid' ? 'good'
-    : status === 'Cancelled' || status === 'Failed' ? 'bad'
-    : status === 'Refunded' ? 'warn' : '';
-  const label = status === 'CheckedIn' ? 'Checked in' : status;
-  return <span className={'badge ' + cls}>{label}</span>;
 }
 
 export default function ConfirmPage({ headingRef, result, email, onViewMine, onBookAgain }) {
@@ -50,7 +43,7 @@ export default function ConfirmPage({ headingRef, result, email, onViewMine, onB
         </div>
       </div>
       <div className="actions">
-        <button type="button" className="btn btn-primary" onClick={onViewMine}>View my bookings</button>
+        <button type="button" className="btn btn-primary" onClick={onViewMine}>Go to my bookings</button>
         <button type="button" className="btn btn-ghost" onClick={onBookAgain}>Book another stay</button>
       </div>
     </>

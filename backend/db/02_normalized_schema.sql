@@ -38,6 +38,7 @@ CREATE TABLE guest (
     last_name   VARCHAR(50)  NOT NULL,
     email       VARCHAR(100) NOT NULL,
     phone       VARCHAR(20)  NOT NULL,
+    password    VARCHAR(128) NULL COMMENT 'Django password hash (never plain text). NULL = guest has no website account.',
 
     PRIMARY KEY (guest_id),
     CONSTRAINT uq_guest_email   UNIQUE (email),

@@ -39,23 +39,27 @@ CORS_ALLOWED_ORIGINS = [
 
 ROOT_URLCONF = 'hotel_api.urls'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ['DB_NAME'],
-        'USER': os.environ['DB_USER'],
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ['DB_HOST'],
-        'PORT': os.environ['DB_PORT'],
-        'OPTIONS': {'charset': 'utf8mb4'},
+if os.environ.get('USE_SQLITE'):
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ['DB_NAME'],
+            'USER': os.environ['DB_USER'],
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ['DB_HOST'],
+            'PORT': os.environ['DB_PORT'],
+            'OPTIONS': {'charset': 'utf8mb4'},
+        }
     }
-}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 USE_TZ = False
 STATIC_URL = 'static/'
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_AUTHENTICATION_CLASSES': ['booking.auth.BearerTokenAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.AllowAny'],
+    'DEFAULT_THROTTLE_RATES': {'auth': '20/min'},
 }

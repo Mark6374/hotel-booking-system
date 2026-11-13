@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getSelection, validateSearch, money, plural, runBookingTransaction, fmtDate, getDb } from '../db.js';
+import { PHONE_RE, PHONE_MESSAGE } from '../auth.js';
 
 function SummaryDates({ s, n }) {
   return (
@@ -31,20 +32,22 @@ function RenderLog({ log }) {
 
 const emptyErrors = {};
 
-export default function CheckoutPage({ headingRef, search, sel, onBack, onPaid }) {
+export default function CheckoutPage({ headingRef, me, search, sel, onBack, onPaid }) {
   const db = getDb();
   const sel2 = getSelection(db, search, sel);
 
-  const [first_name, setFirstName] = useState('');
-  const [last_name, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  // Prefilled from the logged-in account; the booking is always made under its email.
+  const [first_name, setFirstName] = useState(me.first_name);
+  const [last_name, setLastName] = useState(me.last_name);
+  const email = me.email;
+  const [phone, setPhone] = useState(me.phone);
   const [method, setMethod] = useState('Card');
   const [card, setCard] = useState('');
   const [errors, setErrors] = useState(emptyErrors);
   const [failure, setFailure] = useState(null);
+  const [busy, setBusy] = useState(false);
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     setFailure(null);
 
@@ -63,7 +66,7 @@ export default function CheckoutPage({ headingRef, search, sel, onBack, onPaid }
     if (!v.email) errs.email = 'Enter your email.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) errs.email = 'Enter an email like name@example.com.';
     if (!v.phone) errs.phone = 'Enter your phone number.';
-    else if (!/^\+?[\d\s()-]{6,20}$/.test(v.phone)) errs.phone = 'Use digits, spaces, and an optional + at the start.';
+    else if (!PHONE_RE.test(v.phone)) errs.phone = PHONE_MESSAGE;
     if (!v.method) errs.method = 'Choose how you pay.';
     if (v.method === 'Card' && !/^\d{16}$/.test(v.cardDigits)) errs.card = 'Enter a 16-digit card number.';
 
@@ -91,7 +94,8 @@ export default function CheckoutPage({ headingRef, search, sel, onBack, onPaid }
       });
     });
 
-    const result = runBookingTransaction({
+    setBusy(true);
+    const result = await runBookingTransaction({
       guest: { first_name: v.first_name, last_name: v.last_name, email: v.email, phone: v.phone },
       ci: search.ci,
       co: search.co,
@@ -101,6 +105,7 @@ export default function CheckoutPage({ headingRef, search, sel, onBack, onPaid }
       cardDigits: v.cardDigits
     });
 
+    setBusy(false);
     if (result.ok) {
       onPaid(result, v.email);
     } else {
@@ -136,7 +141,8 @@ export default function CheckoutPage({ headingRef, search, sel, onBack, onPaid }
             <div className="field">
               <label htmlFor="email">Email</label>
               <input type="email" id="email" maxLength={100} autoComplete="email" aria-describedby="err-email"
-                aria-invalid={errors.email ? 'true' : undefined} value={email} onChange={(e) => setEmail(e.target.value)} />
+                aria-invalid={errors.email ? 'true' : undefined} value={email} readOnly />
+              <p className="hint">The booking is saved to your account.</p>
               <p className="field-error" id="err-email">{errors.email || ''}</p>
             </div>
             <div className="field">
@@ -179,7 +185,7 @@ export default function CheckoutPage({ headingRef, search, sel, onBack, onPaid }
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary">Confirm and pay</button>
+          <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving booking…' : 'Confirm and pay'}</button>
         </form>
 
         <aside className="summary" aria-label="Booking summary">

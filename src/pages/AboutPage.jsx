@@ -13,7 +13,7 @@ export default function AboutPage({ headingRef }) {
     <>
       <div className="page-head">
         <h1 id="about-title" tabIndex={-1} ref={headingRef}>About Juniper Court</h1>
-        <p className="lead">A small, independent hotel in the city centre, run on the same booking tables you see in Staff view.</p>
+        <p className="lead">A small, independent hotel in the city centre, run on the same booking tables our front desk uses.</p>
       </div>
 
       <section className="about-section">

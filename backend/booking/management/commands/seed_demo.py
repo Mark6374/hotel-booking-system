@@ -3,6 +3,8 @@ from django.db import connection
 
 from booking.models import Booking, BookingRoom, Guest, Payment, Room, RoomType
 
+DEMO_PASSWORD = 'demo12345'  # all demo guests can log in with this
+
 GUESTS = [
     {'guest_id': 1, 'first_name': 'Amina', 'last_name': 'Sadykova', 'email': 'amina@example.com', 'phone': '+7 700 111 2233'},
     {'guest_id': 2, 'first_name': 'Daniel', 'last_name': 'Brooks', 'email': 'daniel@example.com', 'phone': '+44 20 7946 0101'},
@@ -59,7 +61,10 @@ class Command(BaseCommand):
                 cur.execute(f'TRUNCATE TABLE {table}')
             cur.execute('SET FOREIGN_KEY_CHECKS=1')
 
-        Guest.objects.bulk_create([Guest(**row) for row in GUESTS])
+        guests = [Guest(**row) for row in GUESTS]
+        for g in guests:
+            g.set_password(DEMO_PASSWORD)
+        Guest.objects.bulk_create(guests)
         RoomType.objects.bulk_create([RoomType(**row) for row in ROOM_TYPES])
         Room.objects.bulk_create([
             Room(room_id=r['room_id'], room_number=r['room_number'], floor=r['floor'], status=r['status'], room_type_id=r['room_type_id'])
@@ -78,4 +83,4 @@ class Command(BaseCommand):
             for p in PAYMENTS
         ])
 
-        self.stdout.write(self.style.SUCCESS('Seeded 3 guests, 3 room types, 6 rooms, 5 bookings, 5 booking_room lines, 5 payments.'))
+        self.stdout.write(self.style.SUCCESS('Seeded 3 guests (password: ' + DEMO_PASSWORD + '), 3 room types, 6 rooms, 5 bookings, 5 booking_room lines, 5 payments.'))

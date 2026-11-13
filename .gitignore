@@ -1,3 +1,14 @@
 node_modules
 dist
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Local secrets (copy backend/.env.example to backend/.env)
+backend/.env
+
+# Claude Code local files
+.claude/
+*.zip
