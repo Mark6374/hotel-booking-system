@@ -14,6 +14,9 @@ class Guest(models.Model):
         managed = False
         db_table = 'guest'
 
+    def __str__(self):
+        return '%s %s' % (self.first_name, self.last_name)
+
     # Lets DRF treat a Guest as the authenticated "user".
     @property
     def is_authenticated(self):
@@ -41,6 +44,9 @@ class RoomType(models.Model):
         managed = False
         db_table = 'room_type'
 
+    def __str__(self):
+        return self.type_name
+
 
 class Room(models.Model):
     room_id = models.AutoField(primary_key=True)
@@ -52,6 +58,9 @@ class Room(models.Model):
     class Meta:
         managed = False
         db_table = 'room'
+
+    def __str__(self):
+        return 'Room %s' % self.room_number
 
 
 class Booking(models.Model):
@@ -66,6 +75,9 @@ class Booking(models.Model):
         managed = False
         db_table = 'booking'
 
+    def __str__(self):
+        return 'Booking #%s' % self.booking_id
+
 
 class BookingRoom(models.Model):
     booking_room_id = models.AutoField(primary_key=True)
@@ -77,6 +89,9 @@ class BookingRoom(models.Model):
     class Meta:
         managed = False
         db_table = 'booking_room'
+
+    def __str__(self):
+        return 'Booking #%s / room %s' % (self.booking_id, self.room_id)
 
 
 class Payment(models.Model):
@@ -90,3 +105,6 @@ class Payment(models.Model):
     class Meta:
         managed = False
         db_table = 'payment'
+
+    def __str__(self):
+        return 'Payment #%s' % self.payment_id

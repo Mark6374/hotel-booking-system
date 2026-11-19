@@ -5,9 +5,9 @@ from booking.roles import GuestRole
 
 # Demo hotel employees. Guests from seed_demo keep the password demo12345.
 STAFF = [
-    {'email': 'admin@junipercourt.example', 'first_name': 'Aliya', 'last_name': 'Nurlanova',
+    {'email': 'admin@junipercourt.example', 'first_name': 'Mark', 'last_name': 'Yeriskin',
      'phone': '+7 700 000 0001', 'role': 'admin', 'password': 'Admin12345'},
-    {'email': 'staff@junipercourt.example', 'first_name': 'Timur', 'last_name': 'Akhmetov',
+    {'email': 'staff@junipercourt.example', 'first_name': 'Dmitriy', 'last_name': 'Cherepkov',
      'phone': '+7 700 000 0002', 'role': 'staff', 'password': 'Staff12345'},
 ]
 

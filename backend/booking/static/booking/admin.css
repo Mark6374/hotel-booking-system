@@ -1,0 +1,27 @@
+/* Hotel admin: status badges, stars, dashboard cards. Uses Django admin's own colour variables,
+   so it follows the light / dark theme. */
+.hb { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 11px; font-weight: 600;
+      line-height: 18px; white-space: nowrap; }
+.hb-ok    { background: #d9f2e1; color: #14532d; }
+.hb-info  { background: #dbeafe; color: #1e3a8a; }
+.hb-warn  { background: #fef3c7; color: #78350f; }
+.hb-bad   { background: #fee2e2; color: #7f1d1d; }
+.hb-muted { background: #e5e7eb; color: #374151; }
+.hb-stars { color: #d97706; letter-spacing: 1px; font-size: 14px; white-space: nowrap; }
+.hb-dim   { color: var(--body-quiet-color, #6b7280); }
+
+.hb-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 0 0 22px; }
+.hb-card { background: var(--darkened-bg, #f8f8f8); border: 1px solid var(--hairline-color, #e5e7eb);
+           border-radius: 8px; padding: 12px 14px; }
+.hb-card .n { font-size: 26px; font-weight: 700; color: var(--body-fg, #111); line-height: 1.2; }
+.hb-card .l { font-size: 12px; color: var(--body-quiet-color, #6b7280); text-transform: uppercase; letter-spacing: .04em; }
+.hb-card a { text-decoration: none; }
+.hb-card.alert .n { color: #b45309; }
+.hb-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px; margin-bottom: 20px; }
+.hb-panel h2 { margin: 0 0 6px; font-size: 14px; }
+.hb-panel table { width: 100%; }
+.hb-comment { max-width: 52ch; }
+
+/* Django limits the home page to 600px; the dashboard needs more room. */
+.dashboard #content { width: auto; max-width: 1180px; }
+.hb-nw { white-space: nowrap; }

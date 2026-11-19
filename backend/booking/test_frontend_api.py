@@ -160,3 +160,16 @@ class FrontendApiTests(TransactionTestCase):
         self.assertEqual(len(mail.outbox), 0)
         bad = self.api().post('/api/auth/password-reset/confirm/', {'token': 'junk', 'new_password': 'NewPass123'}, format='json')
         self.assertEqual(bad.status_code, 400)
+
+    def test_reset_demo_keeps_registered_accounts(self):
+        from .frontend_api import _registered_accounts, _restore_accounts
+        user = self._guest('real.person@example.com', 'staff')
+        kept = _registered_accounts()
+        self.assertIn('real.person@example.com', [r['guest']['email'] for r in kept])
+        old_hash = user.password
+        Guest.objects.filter(email='real.person@example.com').delete()
+        _restore_accounts(kept)
+        g = Guest.objects.get(email='real.person@example.com')
+        self.assertEqual(g.password, old_hash)
+        self.assertTrue(g.check_password('Passw0rd!'))
+        self.assertEqual(GuestRole.objects.get(guest_id=g.guest_id).role, 'staff')

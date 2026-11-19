@@ -33,7 +33,7 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const ACCOUNTS = {
   admin: { email: 'admin@junipercourt.example', password: 'Admin12345' },
   staff: { email: 'staff@junipercourt.example', password: 'Staff12345' },
-  amina: { email: 'amina@example.com', password: 'demo12345' },
+  amina: { email: 'saltanat@gmail.com', password: 'demo12345' },
   daniel: { email: 'daniel@example.com', password: 'demo12345' },
 };
 const TOKEN_KEY = 'juniper-court-token-v2';
@@ -223,7 +223,7 @@ const TESTS = [
   }],
 
   ['UI-10', 'Sign up with an email that already exists', null, async (page) => {
-    await register(page, { ...NEW_USER, email: 'AMINA@EXAMPLE.COM' });
+    await register(page, { ...NEW_USER, email: 'SALTANAT@GMAIL.COM' });
     const body = clean(await page.textContent('main'));
     const ok = body.includes('An account with this email already exists.');
     return { actual: ok ? '"An account with this email already exists."' : 'no error, page: ' + (await heading(page)), pass: ok };
@@ -246,7 +246,7 @@ const TESTS = [
 
   ['UI-13', 'Log in with a wrong password', null, async (page) => {
     await go(page, 'login');
-    await page.fill('#login-email', 'amina@example.com');
+    await page.fill('#login-email', 'saltanat@gmail.com');
     await page.fill('#login-password', 'wrongpass1');
     await page.locator('form.auth-form').getByRole('button', { name: 'Log in' }).click();
     await page.waitForSelector('.tx-fail');
@@ -256,7 +256,7 @@ const TESTS = [
 
   ['UI-14', 'Log in and see my bookings', null, async (page) => {
     await go(page, 'login');
-    await page.fill('#login-email', 'amina@example.com');
+    await page.fill('#login-email', 'saltanat@gmail.com');
     await page.fill('#login-password', 'demo12345');
     await page.locator('form.auth-form').getByRole('button', { name: 'Log in' }).click();
     await page.waitForFunction(() => /Amina/.test(document.querySelector('main h1')?.textContent || ''));
@@ -271,7 +271,7 @@ const TESTS = [
     await page.waitForSelector('#login-email');
     const notice = clean(await page.textContent('main .note'));
     await t.shot();
-    await page.fill('#login-email', 'amina@example.com');
+    await page.fill('#login-email', 'saltanat@gmail.com');
     await page.fill('#login-password', 'demo12345');
     await page.locator('form.auth-form').getByRole('button', { name: 'Log in' }).click();
     await page.waitForSelector('#card');

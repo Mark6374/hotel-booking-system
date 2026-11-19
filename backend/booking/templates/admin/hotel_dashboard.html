@@ -1,0 +1,48 @@
+{% extends "admin/index.html" %}
+{% load static %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'booking/admin.css' %}">{% endblock %}
+
+{% block content %}
+{% if dashboard %}
+<div class="hb-dashboard">
+  <p class="hb-dim">Today is {{ dashboard.today|date:"l, j F Y" }}.</p>
+
+  <div class="hb-cards">
+    <div class="hb-card"><a href="{% url 'admin:booking_booking_changelist' %}?status__exact=Confirmed"><div class="n">{{ dashboard.arrivals_today }}</div><div class="l">Arrivals today</div></a></div>
+    <div class="hb-card"><a href="{% url 'admin:booking_booking_changelist' %}?status__exact=CheckedIn"><div class="n">{{ dashboard.departures_today }}</div><div class="l">Departures today</div></a></div>
+    <div class="hb-card"><a href="{% url 'admin:booking_booking_changelist' %}?status__exact=CheckedIn"><div class="n">{{ dashboard.in_house }}</div><div class="l">Bookings in house</div></a></div>
+    <div class="hb-card"><div class="n">{{ dashboard.occupancy_percent }}%</div><div class="l">Occupancy tonight ({{ dashboard.occupied_tonight }} of {{ dashboard.rooms_total }} rooms)</div></div>
+    <div class="hb-card {% if dashboard.rooms_in_maintenance %}alert{% endif %}"><a href="{% url 'admin:booking_room_changelist' %}?status__exact=Maintenance"><div class="n">{{ dashboard.rooms_in_maintenance }}</div><div class="l">Rooms in maintenance</div></a></div>
+    <div class="hb-card"><div class="n">{{ dashboard.revenue_30d|floatformat:"-2" }}</div><div class="l">Paid, last 30 days (refunded {{ dashboard.refunds_30d|floatformat:"-2" }})</div></div>
+    <div class="hb-card"><a href="{% url 'admin:booking_roomreview_changelist' %}"><div class="n">{% if dashboard.reviews_average %}{{ dashboard.reviews_average }}{% else %}&ndash;{% endif %} <span class="hb-stars">&#9733;</span></div><div class="l">{{ dashboard.reviews_published }} published reviews ({{ dashboard.reviews_this_week }} new this week)</div></a></div>
+    <div class="hb-card {% if dashboard.reviews_hidden %}alert{% endif %}"><a href="{% url 'admin:booking_roomreview_changelist' %}?status__exact=Hidden"><div class="n">{{ dashboard.reviews_hidden }}</div><div class="l">Hidden reviews</div></a></div>
+  </div>
+
+  <div class="hb-two">
+    <div class="hb-panel module">
+      <table>
+        <caption>Arrivals in the next 7 days</caption>
+        {% for b in dashboard.upcoming_arrivals %}
+        <tr><td><a href="{% url 'admin:booking_booking_change' b.pk %}">#{{ b.pk }}</a></td><td>{{ b.guest }}</td><td>{{ b.check_in|date:"D j M" }}</td></tr>
+        {% empty %}<tr><td class="hb-dim">No confirmed arrivals.</td></tr>{% endfor %}
+      </table>
+    </div>
+    <div class="hb-panel module">
+      <table>
+        <caption>Latest reviews</caption>
+        {% for r in dashboard.latest_reviews %}
+        <tr>
+          <td><a href="{% url 'admin:booking_roomreview_change' r.pk %}">Room {{ r.booking_room.room.room_number }}</a></td>
+          <td class="hb-stars">{% for i in "12345" %}{% if forloop.counter <= r.rating %}&#9733;{% else %}&#9734;{% endif %}{% endfor %}</td>
+          <td>{{ r.booking_room.booking.guest }}</td>
+          <td>{% if r.status == "Hidden" %}<span class="hb hb-bad">Hidden</span>{% endif %}</td>
+        </tr>
+        {% empty %}<tr><td class="hb-dim">No reviews yet.</td></tr>{% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

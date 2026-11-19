@@ -7,7 +7,7 @@ B=${1:-http://127.0.0.1:8000/api}
 j() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 ADMIN=$(curl -s -X POST $B/auth/login/ -H 'Content-Type: application/json' -d '{"email":"admin@junipercourt.example","password":"Admin12345"}' | j "d['token']")
 curl -s -X POST $B/admin/reset-demo/ -H "Authorization: Bearer $ADMIN" > /dev/null
-AMINA=$(curl -s -X POST $B/auth/login/ -H 'Content-Type: application/json' -d '{"email":"amina@example.com","password":"demo12345"}' | j "d['token']")
+AMINA=$(curl -s -X POST $B/auth/login/ -H 'Content-Type: application/json' -d '{"email":"saltanat@gmail.com","password":"demo12345"}' | j "d['token']")
 
 echo "API-01  Visitor (no login) GET /api/guests/        -> expected: no personal data"
 curl -s -w '' $B/guests/ | j "'        got %d guests: ' % len(d) + ', '.join(g['email']+' '+g['phone'] for g in d)"

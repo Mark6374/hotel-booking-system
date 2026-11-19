@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getDb, bookingDetails, fmtDate, money, ref, todayISO, cancelBooking, guestByEmail } from '../db.js';
 import { updateProfile, changePassword, passwordProblem, ROLE_LABEL, PHONE_RE, PHONE_MESSAGE } from '../auth.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
+import { StarInput } from '../components/Stars.jsx';
+import { ReviewItem } from '../components/RoomDetailsModal.jsx';
+import { myReviews, createReview, updateReview, deleteReview, COMMENT_MAX } from '../reviews.js';
+import { toast } from '../toast.js';
 
 const TABS = [
   { id: 'bookings', label: 'My bookings' },
+  { id: 'reviews', label: 'Reviews' },
   { id: 'profile', label: 'Profile' },
   { id: 'security', label: 'Password' }
 ];
@@ -22,7 +27,8 @@ function Bookings({ me, onGo }) {
   async function onCancel(id) {
     try {
       const refunded = await cancelBooking(id);
-      setStatus('Booking ' + ref(id) + ' cancelled.' + (refunded ? ' The payment is marked as refunded.' : ''));
+      setStatus('');
+      toast('Booking ' + ref(id) + ' cancelled.' + (refunded ? ' The payment is refunded.' : ''));
     } catch (e) {
       setStatus(e.message);
     }
@@ -84,7 +90,7 @@ function Profile({ me }) {
     if (Object.keys(errs).length) return;
     try {
       await updateProfile(me.account_id, f);
-      setStatus('Profile saved.');
+      toast('Profile saved.');
     } catch (err) {
       setErrors({ phone: err.message });
     }
@@ -123,6 +129,149 @@ function Profile({ me }) {
   );
 }
 
+function ReviewForm({ idPrefix, initial, submitLabel, onSubmit, onCancel }) {
+  const [rating, setRating] = useState(initial ? initial.rating : 0);
+  const [comment, setComment] = useState(initial ? initial.comment : '');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!rating) { setError('Pick from 1 to 5 stars.'); return; }
+    setError('');
+    setBusy(true);
+    try {
+      await onSubmit({ rating, comment: comment.trim() });
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="review-form" noValidate onSubmit={submit}>
+      <StarInput value={rating} onChange={setRating} idPrefix={idPrefix} invalid={!!error && !rating} />
+      <div className="field">
+        <label htmlFor={idPrefix + '-comment'}>Comment <span className="muted">(optional)</span></label>
+        <textarea id={idPrefix + '-comment'} rows={4} maxLength={COMMENT_MAX} value={comment}
+          placeholder="What did you like? What could be better?"
+          aria-describedby={idPrefix + '-count'} onChange={(e) => setComment(e.target.value)} />
+        <p className="hint" id={idPrefix + '-count'}>{comment.length} / {COMMENT_MAX}</p>
+      </div>
+      {error && <p className="tx-box tx-fail" role="alert">{error}</p>}
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : submitLabel}</button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+function MyReviews({ onGo }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [writing, setWriting] = useState('');   // key of the stay being reviewed
+  const [editing, setEditing] = useState(0);    // review_id being edited
+  const [confirmDelete, setConfirmDelete] = useState(0);
+
+  function load() {
+    myReviews().then(setData).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  if (error) return <p className="tx-box tx-fail" role="alert">{error}</p>;
+  if (!data) return <p className="muted">Loading…</p>;
+
+  async function remove(r) {
+    setConfirmDelete(0);
+    try {
+      await deleteReview(r.review_id);
+      toast('Your review of room ' + r.room_number + ' is deleted.', 'info');
+      load();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  return (
+    <>
+      <h2 className="sub-h">Rate your stays ({data.can_review.length})</h2>
+      {!data.can_review.length ? (
+        <p className="empty">Nothing to rate right now. After you check out, your rooms show up here.</p>
+      ) : (
+        <div className="booking-list">
+          {data.can_review.map((s) => {
+            const key = s.booking_id + '-' + s.room_id;
+            return (
+              <article className="booking-card" key={key}>
+                <div className="booking-head">
+                  <span className="ref">Room {s.room_number} · {s.type_name}</span>
+                  <span className="muted">{ref(s.booking_id)}</span>
+                </div>
+                <p className="muted">Stayed {fmtDate(s.check_in)} to {fmtDate(s.check_out)}</p>
+                {writing === key ? (
+                  <ReviewForm idPrefix={'new-' + key} submitLabel="Publish review" onCancel={() => setWriting('')}
+                    onSubmit={async (f) => {
+                      await createReview(s.room_id, { ...f, booking_id: s.booking_id });
+                      setWriting('');
+                      toast('Thank you! Your review of room ' + s.room_number + ' is published.');
+                      load();
+                    }} />
+                ) : (
+                  <div><button type="button" className="btn btn-primary" onClick={() => setWriting(key)}>Write a review</button></div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <h2 className="sub-h">Your reviews ({data.reviews.length})</h2>
+      {!data.reviews.length ? (
+        <p className="empty">You have not written any reviews yet.</p>
+      ) : (
+        <div className="review-list">
+          {data.reviews.map((r) => (
+            editing === r.review_id ? (
+              <article className="review" key={r.review_id}>
+                <strong>Room {r.room_number}</strong>
+                <ReviewForm idPrefix={'edit-' + r.review_id} initial={r} submitLabel="Save changes" onCancel={() => setEditing(0)}
+                  onSubmit={async (f) => {
+                    await updateReview(r.review_id, f);
+                    setEditing(0);
+                    toast('Your review of room ' + r.room_number + ' is updated.');
+                    load();
+                  }} />
+              </article>
+            ) : (
+              <ReviewItem key={r.review_id} r={r}>
+                {r.status === 'Hidden' && (
+                  <p className="note">A moderator hid this review. Only you can see it, and it cannot be edited.</p>
+                )}
+                <div className="row-actions">
+                  {r.status !== 'Hidden' && (
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditing(r.review_id)}>Edit</button>
+                  )}
+                  {confirmDelete === r.review_id ? (
+                    <>
+                      <button type="button" className="btn btn-sm btn-danger" onClick={() => remove(r)}>Yes, delete</button>
+                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(0)}>Keep</button>
+                    </>
+                  ) : (
+                    <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(r.review_id)}>Delete</button>
+                  )}
+                </div>
+              </ReviewItem>
+            )
+          ))}
+        </div>
+      )}
+      <p className="hint">You can rate a room once per stay, after you check out. Your name is shown as first name and initial only.
+        {' '}<button type="button" className="link-btn" onClick={() => onGo('book')}>Book another stay</button></p>
+    </>
+  );
+}
+
 function Security({ me }) {
   const [oldPw, setOldPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -140,7 +289,7 @@ function Security({ me }) {
     try {
       await changePassword(me.account_id, oldPw, newPw);
       setOldPw(''); setNewPw(''); setNewPw2('');
-      setStatus('Password changed.');
+      toast('Password changed.');
     } catch (err) {
       setError(err.message);
     }
@@ -200,6 +349,7 @@ export default function AccountPage({ headingRef, me, onGo }) {
 
       <div role="tabpanel" id={'panel-' + tab} aria-labelledby={'tab-' + tab} className="tab-panel">
         {tab === 'bookings' && <Bookings me={me} onGo={onGo} />}
+        {tab === 'reviews' && <MyReviews onGo={onGo} />}
         {tab === 'profile' && <Profile me={me} />}
         {tab === 'security' && <Security me={me} />}
       </div>

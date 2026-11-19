@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getDb, money, plural, bookingDetails, setRoomTypePrice, resetDb, TABLES } from '../db.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { ROLES, ROLE_LABEL, setRole, setActive, deleteAccount, loadAccounts } from '../auth.js';
+import { loadReviewSummary, subscribeReviews, getReviewSummary } from '../reviews.js';
+import { toast } from '../toast.js';
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
@@ -31,6 +33,10 @@ function Overview() {
     return { t, revenue, count };
   });
   const maxRev = Math.max(1, ...byType.map((x) => x.revenue));
+  const ratings = useSyncExternalStore(subscribeReviews, getReviewSummary);
+  let rCount = 0;
+  let rSum = 0;
+  Object.values(ratings.room_types).forEach((r) => { if (r.count) { rCount += r.count; rSum += r.average * r.count; } });
 
   return (
     <>
@@ -39,6 +45,7 @@ function Overview() {
         <div className="stat"><span>Refunded</span><strong>{money(refunded)}</strong></div>
         <div className="stat"><span>Active bookings</span><strong>{active.length}</strong></div>
         <div className="stat"><span>User accounts</span><strong>{accounts.length}</strong></div>
+        <div className="stat"><span>Guest rating</span><strong>{rCount ? (rSum / rCount).toFixed(1) + ' ★' : '–'}</strong><small className="muted">{rCount} {rCount === 1 ? 'review' : 'reviews'}</small></div>
       </div>
 
       <div className="two-col">
@@ -79,7 +86,7 @@ function Users({ me }) {
 
   async function run(fn, msg) {
     setError('');
-    try { await fn(); setStatus(msg); } catch (e) { setError(e.message); setStatus(''); }
+    try { await fn(); setStatus(''); toast(msg); } catch (e) { setError(e.message); setStatus(''); }
   }
 
   const q = query.trim().toLowerCase();
@@ -174,7 +181,8 @@ function Prices() {
       return;
     }
     setDraft({ ...draft, [t.room_type_id]: undefined });
-    setStatus(t.type_name + ' now costs ' + money(v) + ' per night. Existing bookings keep their old price.');
+    setStatus('Existing bookings keep their old price.');
+    toast(t.type_name + ' now costs ' + money(v) + ' per night.');
   }
 
   return (
@@ -215,7 +223,9 @@ function Data() {
     try {
       await resetDb();
       await loadAccounts();
-      setStatus('Demo data restored.');
+      loadReviewSummary();
+      setStatus('');
+      toast('Demo data restored.');
     } catch (e) {
       setStatus(e.message);
     }
@@ -250,7 +260,7 @@ function Data() {
 
       <section className="panel danger-zone">
         <h3>Reset demo data</h3>
-        <p className="muted">Runs <code>seed_demo</code> and <code>seed_roles</code> on the server: every table is wiped and the sample rows and demo accounts come back. Accounts registered on the site are deleted. This cannot be undone.</p>
+        <p className="muted">Runs <code>seed_demo</code> and <code>seed_roles</code> on the server: every table is wiped and the sample rows and demo accounts come back. Accounts registered on the site are kept (with their password and role), but their bookings and reviews are removed. This cannot be undone.</p>
         <div className="actions">
           {confirmReset ? (
             <>

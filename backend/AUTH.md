@@ -1,7 +1,7 @@
 # Registration & Login API
 
 Setup (existing database): run `db/03_add_guest_password.sql`. Fresh install: `db/02_normalized_schema.sql` already has the column.
-Then `python manage.py seed_demo` — demo guests (amina@example.com, daniel@example.com, mei@example.com) log in with password `demo12345`.
+Then `python manage.py seed_demo` — demo guests (saltanat@gmail.com, daniel@example.com, mei@example.com) log in with password `demo12345`.
 
 | Method | URL | Body | Result |
 |---|---|---|---|

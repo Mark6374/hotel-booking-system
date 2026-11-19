@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { requestPasswordReset, confirmPasswordReset, passwordProblem, EMAIL_RE } from '../auth.js';
 import PasswordInput from '../components/PasswordInput.jsx';
+import { toast } from '../toast.js';
 
 /* Two steps of "Forgot password":
    #forgot              – enter your email, the server emails a link
@@ -98,6 +99,7 @@ function NewPasswordForm({ headingRef, token, onGo }) {
     try {
       await confirmPasswordReset(token, pw);
       setDone(true);
+      toast('Password changed. You can log in now.');
     } catch (err) {
       setFormError(err.message);
     } finally {

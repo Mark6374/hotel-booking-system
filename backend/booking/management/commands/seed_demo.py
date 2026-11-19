@@ -2,11 +2,12 @@ from django.core.management.base import BaseCommand
 from django.db import connection
 
 from booking.models import Booking, BookingRoom, Guest, Payment, Room, RoomType
+from booking.reviews import RoomReview
 
 DEMO_PASSWORD = 'demo12345'  # all demo guests can log in with this
 
 GUESTS = [
-    {'guest_id': 1, 'first_name': 'Amina', 'last_name': 'Sadykova', 'email': 'amina@example.com', 'phone': '+7 700 111 2233'},
+    {'guest_id': 1, 'first_name': 'Saltanat', 'last_name': 'Sultanakhmet', 'email': 'saltanat@gmail.com', 'phone': '+7 700 111 2233'},
     {'guest_id': 2, 'first_name': 'Daniel', 'last_name': 'Brooks', 'email': 'daniel@example.com', 'phone': '+44 20 7946 0101'},
     {'guest_id': 3, 'first_name': 'Mei', 'last_name': 'Tanaka', 'email': 'mei@example.com', 'phone': '+81 3 5550 0123'},
 ]
@@ -57,8 +58,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         with connection.cursor() as cur:
             cur.execute('SET FOREIGN_KEY_CHECKS=0')
-            for table in ('payment', 'booking_room', 'booking', 'room', 'room_type', 'guest'):
-                cur.execute(f'TRUNCATE TABLE {table}')
+            existing = connection.introspection.table_names(cur)
+            for table in ('room_review', 'payment', 'booking_room', 'booking', 'room', 'room_type', 'guest'):
+                if table in existing:      # room_review exists only after db/06_room_reviews.sql
+                    cur.execute(f'TRUNCATE TABLE {table}')
             cur.execute('SET FOREIGN_KEY_CHECKS=1')
 
         guests = [Guest(**row) for row in GUESTS]
@@ -82,5 +85,12 @@ class Command(BaseCommand):
             Payment(payment_id=p['payment_id'], booking_id=p['booking_id'], amount=p['amount'], payment_method=p['payment_method'], payment_status=p['payment_status'], payment_date=p['payment_date'])
             for p in PAYMENTS
         ])
+
+        # One review on the only finished stay (booking 3: Saltanat in room 102). The other rooms can be
+        # reviewed after a staff member checks the booking in and out.
+        if 'room_review' in connection.introspection.table_names():
+            RoomReview.objects.create(
+                booking_room_id=3, rating=5, status='Published',
+                comment='Quiet courtyard, spotless room and very friendly front desk. Would stay again.')
 
         self.stdout.write(self.style.SUCCESS('Seeded 3 guests (password: ' + DEMO_PASSWORD + '), 3 room types, 6 rooms, 5 bookings, 5 booking_room lines, 5 payments.'))

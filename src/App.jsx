@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useDb } from './hooks/useDb.js';
 import { useAuth } from './hooks/useAuth.js';
-import { todayISO, addDays, reloadDb } from './db.js';
+import { todayISO, addDays, reloadDb, ref } from './db.js';
+import { loadReviewSummary } from './reviews.js';
+import { currentTheme, toggleTheme, subscribeTheme } from './theme.js';
+import { toast } from './toast.js';
 import { logout, canOpen, homeFor, restoreSession, ACCESS, ROLE_LABEL } from './auth.js';
 import HomePage from './pages/HomePage.jsx';
 import BookPage from './pages/BookPage.jsx';
@@ -16,6 +19,7 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import Forbidden from './components/Forbidden.jsx';
 import RoomDetailsModal from './components/RoomDetailsModal.jsx';
+import Toaster from './components/Toaster.jsx';
 
 const VIEWS = ['home', 'book', 'checkout', 'confirm', 'about', 'login', 'register', 'forgot', 'reset', 'account', 'staff', 'admin'];
 
@@ -57,6 +61,7 @@ export default function App() {
   const [detailsType, setDetailsType] = useState(null);
   const [returnTo, setReturnTo] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const theme = useSyncExternalStore(subscribeTheme, currentTheme);
 
   const mainH1 = useRef(null);
 
@@ -64,6 +69,7 @@ export default function App() {
   useEffect(() => {
     reloadDb();
     restoreSession();
+    loadReviewSummary();
   }, []);
 
   useEffect(() => {
@@ -98,7 +104,8 @@ export default function App() {
     if (mainH1.current) mainH1.current.focus({ preventScroll: true });
   }, [view, needsLogin, forbidden]);
 
-  function afterAuth(account) {
+  function afterAuth(account, isNew) {
+    toast(isNew ? `Welcome, ${account.first_name}! Your account is ready.` : `Welcome back, ${account.first_name}.`);
     const target = returnTo && canOpen(returnTo, account) ? returnTo : homeFor(account);
     setReturnTo('');
     go(target);
@@ -106,6 +113,7 @@ export default function App() {
 
   function doLogout() {
     logout();
+    toast('You are logged out.', 'info');
     setReturnTo('');
     go('home');
   }
@@ -161,7 +169,12 @@ export default function App() {
         }
         return (
           <CheckoutPage headingRef={h} me={me} search={search} sel={sel} onBack={() => go('book')}
-            onPaid={(result, email) => { setConfirmResult({ result, email }); setSel({}); go('confirm'); }} />
+            onPaid={(result, email) => {
+              setConfirmResult({ result, email });
+              setSel({});
+              toast(`Booking ${ref(result.bookingId)} confirmed. Your room is reserved.`);
+              go('confirm');
+            }} />
         );
       case 'confirm':
         if (!confirmResult) {
@@ -188,7 +201,7 @@ export default function App() {
       case 'login':
         return <LoginPage headingRef={h} onLoggedIn={afterAuth} onGo={go} />;
       case 'register':
-        return <RegisterPage headingRef={h} onRegistered={afterAuth} onGo={go} />;
+        return <RegisterPage headingRef={h} onRegistered={(a) => afterAuth(a, true)} onGo={go} />;
       case 'forgot':
       case 'reset':
         return <ResetPasswordPage headingRef={h} token={view === 'reset' ? resetToken : ''} onGo={go} />;
@@ -224,6 +237,12 @@ export default function App() {
             </div>
 
             <div className="nav-group nav-user">
+              <button type="button" className="theme-btn" onClick={toggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
+                <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
+                <span className="theme-btn-text" aria-hidden="true">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+              </button>
               {me ? (
                 <>
                   <span className="user-pill" title={me.email}>
@@ -262,6 +281,8 @@ export default function App() {
       {detailsType != null && (
         <RoomDetailsModal typeId={detailsType} onClose={() => setDetailsType(null)} />
       )}
+
+      <Toaster />
     </>
   );
 }

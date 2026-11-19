@@ -22,6 +22,9 @@ class GuestRole(models.Model):
         managed = False
         db_table = 'guest_role'
 
+    def __str__(self):
+        return '%s: %s' % (self.guest, self.role)
+
 
 def role_info(guest):
     """(role, is_active) for a guest; defaults when there is no row."""

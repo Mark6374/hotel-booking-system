@@ -54,4 +54,6 @@ A blocked account gets 403 everywhere. The demo bank declines a card number that
 
 ## Tests
 
-`USE_SQLITE=1 DB_NAME=x DB_USER=x DB_HOST=x DB_PORT=1 python manage.py test booking` runs 27 tests (8 auth + 10 frontend API + 9 privacy/phone in test_privacy_and_phone.py).
+`USE_SQLITE=1 DB_NAME=x DB_USER=x DB_HOST=x DB_PORT=1 python manage.py test booking` runs 68 tests (8 auth + 10 frontend API + 9 privacy/phone + 19 reviews + 22 admin).
+
+Room reviews: see `REVIEWS_API.md`. Staff admin panel: see `ADMIN.md`.

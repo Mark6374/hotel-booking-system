@@ -40,7 +40,7 @@ export function passwordScore(pw) {
 export const DEMO_ACCOUNTS = [
   { email: 'admin@junipercourt.example', password: 'Admin12345', role: 'admin' },
   { email: 'staff@junipercourt.example', password: 'Staff12345', role: 'staff' },
-  { email: 'amina@example.com', password: 'demo12345', role: 'guest' }
+  { email: 'saltanat@gmail.com', password: 'demo12345', role: 'guest' }
 ];
 
 /* ---------- State ---------- */

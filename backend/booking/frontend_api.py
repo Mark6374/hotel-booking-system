@@ -337,6 +337,44 @@ class ResetDemoView(APIView):
     permission_classes = [IsAdmin]
 
     def post(self, request):
+        kept = _registered_accounts()
         call_command('seed_demo')
         call_command('seed_roles')
-        return Response({'ok': True})
+        _restore_accounts(kept)
+        return Response({'ok': True, 'kept_accounts': len(kept)})
+
+
+def _demo_emails():
+    from .management.commands.seed_demo import GUESTS
+    from .management.commands.seed_roles import STAFF
+    return {r['email'].lower() for r in GUESTS + STAFF}
+
+
+def _registered_accounts():
+    """Accounts people created on the site (not the demo ones), with their password
+    hash and role, so a demo reset does not delete them. Their bookings are not kept."""
+    demo = _demo_emails()
+    rows = []
+    for g in Guest.objects.exclude(password__isnull=True).exclude(password=''):
+        if g.email.lower() in demo:
+            continue
+        role = GuestRole.objects.filter(guest_id=g.guest_id).first()
+        rows.append({
+            'guest': {'guest_id': g.guest_id, 'first_name': g.first_name, 'last_name': g.last_name,
+                      'email': g.email, 'phone': g.phone, 'password': g.password},
+            'role': (role.role, role.is_active) if role else None,
+        })
+    return rows
+
+
+def _restore_accounts(rows):
+    for row in rows:
+        data = dict(row['guest'])
+        if Guest.objects.filter(pk=data['guest_id']).exists():
+            data.pop('guest_id')  # id taken by a demo row: the account gets a new id
+        if Guest.objects.filter(email__iexact=data['email']).exists():
+            continue
+        g = Guest.objects.create(**data)
+        if row['role']:
+            GuestRole.objects.update_or_create(guest_id=g.guest_id,
+                                               defaults={'role': row['role'][0], 'is_active': row['role'][1]})

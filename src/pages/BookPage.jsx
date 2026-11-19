@@ -4,6 +4,8 @@ import {
   getSelection, roomsOfType, freeRooms, blockedRoomIds
 } from '../db.js';
 import RoomPhoto from '../components/RoomPhoto.jsx';
+import { TypeRating } from '../components/Stars.jsx';
+import AvailabilityCalendar from '../components/AvailabilityCalendar.jsx';
 
 function SummaryDates({ s, n }) {
   return (
@@ -86,6 +88,16 @@ export default function BookPage({ headingRef, loggedIn, search, setSearch, sel,
         </form>
       </div>
 
+      <AvailabilityCalendar db={db} search={search} onPick={(from, to) => {
+        const s = { ci: from, co: to, guests: parseInt(guests, 10) || search.guests };
+        setCi(from);
+        setCo(to);
+        setSearchError('');
+        setSearch(s);
+        setSel({});
+        document.getElementById('results-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }} />
+
       <div className="results-wrap">
         <div className="results-main">
           <h2 id="results-title">
@@ -113,11 +125,12 @@ export default function BookPage({ headingRef, loggedIn, search, setSearch, sel,
                       </div>
                       <div className="rt-info-text">
                         <h3>{t.type_name}</h3>
+                        <TypeRating typeId={t.room_type_id} onClick={() => onDetails(t.room_type_id)} />
                         <p className="desc">{t.description}</p>
                         <p className="price">
                           Sleeps {t.capacity}. {money(t.price_per_night)} per night, {money(t.price_per_night * n)} for {plural(n, 'night', 'nights')}.
                         </p>
-                        <button type="button" className="link-btn" onClick={() => onDetails(t.room_type_id)}>See photos and details</button>
+                        <button type="button" className="link-btn" onClick={() => onDetails(t.room_type_id)}>See photos, details and reviews</button>
                       </div>
                     </div>
                     <div className="rt-avail">

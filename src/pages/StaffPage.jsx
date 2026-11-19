@@ -1,9 +1,73 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   getDb, blockedRoomIds, typeOf, bookingDetails, fmtDate, ref, todayISO, addDays,
   toggleRoomMaintenance, checkInBooking, checkOutBooking, cancelBooking
 } from '../db.js';
 import StatusBadge from '../components/StatusBadge.jsx';
+import { ReviewItem } from '../components/RoomDetailsModal.jsx';
+import { allReviews, moderateReview } from '../reviews.js';
+import { toast } from '../toast.js';
+
+const REVIEW_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'Published', label: 'Published' },
+  { id: 'Hidden', label: 'Hidden' }
+];
+
+/* Staff can hide a review (spam, rude words, personal data) or publish it again. */
+function ReviewModeration() {
+  const [filter, setFilter] = useState('all');
+  const [list, setList] = useState(null);
+  const [error, setError] = useState('');
+
+  function load() {
+    setError('');
+    allReviews('all').then(setList).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function setStatus(r, status) {
+    try {
+      await moderateReview(r.review_id, status);
+      toast(status === 'Hidden' ? `Review of room ${r.room_number} hidden from the website.` : `Review of room ${r.room_number} published again.`,
+        status === 'Hidden' ? 'info' : 'success');
+      load();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  if (error) return <p className="tx-box tx-fail" role="alert">{error}</p>;
+  if (!list) return <p className="muted">Loading reviews…</p>;
+  const rows = list.filter((r) => filter === 'all' || r.status === filter);
+
+  return (
+    <>
+      <div className="chips" role="group" aria-label="Filter reviews">
+        {REVIEW_FILTERS.map((f) => (
+          <button key={f.id} type="button" className="chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
+            {f.label} ({f.id === 'all' ? list.length : list.filter((r) => r.status === f.id).length})
+          </button>
+        ))}
+      </div>
+      {!rows.length ? <p className="empty">No reviews here.</p> : (
+        <div className="review-list">
+          {rows.map((r) => (
+            <ReviewItem key={r.review_id} r={r}>
+              <div className="row-actions">
+                <StatusBadge status={r.status} />
+                {r.status === 'Published'
+                  ? <button type="button" className="btn btn-sm btn-danger" onClick={() => setStatus(r, 'Hidden')}>Hide</button>
+                  : <button type="button" className="btn btn-sm btn-primary" onClick={() => setStatus(r, 'Published')}>Publish again</button>}
+              </div>
+            </ReviewItem>
+          ))}
+        </div>
+      )}
+      <p className="hint">Hidden reviews disappear from the website and the ratings, but stay in the database. Guests can write a review after you check them out.</p>
+    </>
+  );
+}
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -55,9 +119,11 @@ export default function StaffPage({ headingRef, me, staffDates, setStaffDates })
   async function act(fn, id, msg) {
     try {
       const out = await fn(id);
-      setStatus(typeof msg === 'function' ? msg(out) : msg);
+      setStatus('');
+      toast(typeof msg === 'function' ? msg(out) : msg);
     } catch (e) {
       setStatus(e.message);
+      toast(e.message, 'error');
     }
   }
 
@@ -169,6 +235,9 @@ export default function StaffPage({ headingRef, me, staffDates, setStaffDates })
           );
         })}
       </div>
+
+      <h2 className="sub-h">Guest reviews</h2>
+      <ReviewModeration />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getDb, money, validateSearch, todayISO } from '../db.js';
 import RoomPhoto from '../components/RoomPhoto.jsx';
+import { TypeRating } from '../components/Stars.jsx';
 import heroPhoto from '../assets/rooms/view-1.jpg';
 
 const FEATURES = [
@@ -70,9 +71,10 @@ export default function HomePage({ headingRef, me, search, onSearch, onDetails, 
                   <h3>{t.type_name}</h3>
                   <span className="type-price">{money(t.price_per_night)}<small> / night</small></span>
                 </div>
+                <TypeRating typeId={t.room_type_id} onClick={() => onDetails(t.room_type_id)} />
                 <p className="muted">{t.description}</p>
                 <p className="muted">Sleeps {t.capacity}</p>
-                <button type="button" className="link-btn" onClick={() => onDetails(t.room_type_id)}>Photos and details</button>
+                <button type="button" className="link-btn" onClick={() => onDetails(t.room_type_id)}>Photos, details and reviews</button>
               </div>
             </article>
           ))}

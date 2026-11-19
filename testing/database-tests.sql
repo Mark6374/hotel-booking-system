@@ -199,7 +199,7 @@ CALL expect_rejected('DB-13', 'Booking for a guest that does not exist',
   "INSERT INTO booking (guest_id, check_in, check_out, status) VALUES (999, '2026-12-20', '2026-12-22', 'Confirmed')");
 
 CALL expect_rejected('DB-14', 'Same email again, in capital letters',
-  "INSERT INTO guest (first_name, last_name, email, phone) VALUES ('Test', 'User', 'AMINA@EXAMPLE.COM', '+7 700 000 0000')");
+  "INSERT INTO guest (first_name, last_name, email, phone) VALUES ('Test', 'User', 'SALTANAT@GMAIL.COM', '+7 700 000 0000')");
 
 CALL expect_rejected('DB-15', 'Email without @',
   "INSERT INTO guest (first_name, last_name, email, phone) VALUES ('Test', 'User', 'test.example.com', '+7 700 000 0000')");
@@ -226,7 +226,7 @@ CALL expect_rejected('DB-22', 'Zero guests in a room',
   "INSERT INTO booking_room (booking_id, room_id, guests_count, price_per_night) VALUES (1, 2, 0, 60)");
 
 CALL expect_rejected('DB-23', 'Delete a guest who has bookings',
-  "DELETE FROM guest WHERE email = 'amina@example.com'");
+  "DELETE FROM guest WHERE email = 'saltanat@gmail.com'");
 
 CALL expect_rejected('DB-24', 'Delete a room type that still has rooms',
   "DELETE FROM room_type WHERE type_name = 'Standard'");
