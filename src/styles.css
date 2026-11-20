@@ -1202,3 +1202,15 @@ textarea {
   .hotel-map { grid-template-columns: 1fr; }
   .map-frame, .hotel-map-compact .map-frame { min-height: 260px; }
 }
+
+/* Header fits on one line for every role: the theme switch is an icon on wide screens,
+   with its text shown inside the mobile menu. */
+.theme-btn { width: 38px; height: 38px; padding: 0; justify-content: center; flex: none; }
+.theme-btn-text { display: none; }
+@media (max-width: 900px) {
+  .theme-btn { width: auto; height: auto; padding: 5px 12px; }
+  .theme-btn-text { display: inline; }
+}
+/* In tables the action buttons stay on one line (rows keep their height). */
+td.row-actions { flex-wrap: nowrap; }
+td .badge + .badge { margin-left: 4px; }
