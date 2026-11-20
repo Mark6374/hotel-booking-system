@@ -10,12 +10,13 @@ from django.test import TransactionTestCase
 from rest_framework.test import APIClient
 
 from .auth import make_token
+from .login_lock import LoginLock
 from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
 from .reviews import RoomReview
 from .reviews_api import ReviewWriteThrottle
 from .roles import GuestRole
 
-MODELS = [Guest, GuestRole, RoomType, Room, Booking, BookingRoom, Payment, RoomReview]
+MODELS = [Guest, GuestRole, RoomType, Room, Booking, BookingRoom, Payment, RoomReview, LoginLock]
 TODAY = datetime.date.today()
 
 

@@ -2,6 +2,7 @@ from django.db import connection
 from django.test import TransactionTestCase
 from rest_framework.test import APIClient
 
+from .login_lock import LoginLock
 from .models import Guest
 
 REGISTER = '/api/auth/register/'
@@ -21,14 +22,17 @@ class AuthTests(TransactionTestCase):
         # Guest is an unmanaged model (tables come from the SQL file), so create it for tests.
         with connection.schema_editor() as editor:
             editor.create_model(Guest)
+            editor.create_model(LoginLock)  # login checks the lock table
 
     @classmethod
     def tearDownClass(cls):
         with connection.schema_editor() as editor:
+            editor.delete_model(LoginLock)
             editor.delete_model(Guest)
         super().tearDownClass()
 
     def setUp(self):
+        LoginLock.objects.all()._raw_delete('default')
         Guest.objects.all()._raw_delete('default')  # unmanaged tables aren't flushed between tests
         self.api = APIClient()
 

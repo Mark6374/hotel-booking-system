@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
+from . import login_lock
 from .auth import make_token
 
 from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
@@ -119,12 +120,24 @@ class LoginView(APIView):
         guest = Guest.objects.filter(email__iexact=email).first()
         if guest is None or not guest.password:
             check_password(password, _DUMMY_HASH)
-            ok = False
-        else:
-            ok = guest.check_password(password)
-        if not ok:
             return Response({'detail': 'Invalid email or password.'},
                             status=status.HTTP_401_UNAUTHORIZED)
+
+        # Login protection (login_lock.py): locked accounts cannot log in,
+        # not even with the right password, until the 15 minutes are over.
+        minutes = login_lock.minutes_left(guest)
+        if minutes:
+            return Response({'detail': login_lock.locked_message(minutes), 'locked': True},
+                            status=status.HTTP_423_LOCKED)
+
+        if not guest.check_password(password):
+            if login_lock.register_failure(guest):
+                return Response({'detail': login_lock.locked_message(login_lock.LOCK_MINUTES), 'locked': True},
+                                status=status.HTTP_423_LOCKED)
+            return Response({'detail': 'Invalid email or password.'},
+                            status=status.HTTP_401_UNAUTHORIZED)
+
+        login_lock.clear(guest)
         return Response(_auth_payload(guest))
 
 

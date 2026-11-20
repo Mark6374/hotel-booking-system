@@ -59,8 +59,8 @@ class Command(BaseCommand):
         with connection.cursor() as cur:
             cur.execute('SET FOREIGN_KEY_CHECKS=0')
             existing = connection.introspection.table_names(cur)
-            for table in ('room_review', 'payment', 'booking_room', 'booking', 'room', 'room_type', 'guest'):
-                if table in existing:      # room_review exists only after db/06_room_reviews.sql
+            for table in ('login_lock', 'room_review', 'payment', 'booking_room', 'booking', 'room', 'room_type', 'guest'):
+                if table in existing:      # room_review / login_lock exist only after db/06 and db/07
                     cur.execute(f'TRUNCATE TABLE {table}')
             cur.execute('SET FOREIGN_KEY_CHECKS=1')
 

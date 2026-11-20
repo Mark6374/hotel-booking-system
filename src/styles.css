@@ -1185,3 +1185,20 @@ textarea {
   .cal-free-word { display: none; }
   .cal-wd { font-size: 0.7rem; }
 }
+
+/* ---------- Hotel map (About + Home) ---------- */
+.hotel-map {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr); gap: 0;
+  background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow);
+}
+.map-frame { position: relative; min-height: 340px; background: var(--subtle); }
+.map-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.hotel-map-compact .map-frame { min-height: 280px; }
+.map-info { padding: 20px; display: grid; gap: 14px; align-content: start; }
+.map-info p { margin-top: 4px; }
+.map-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.map-links .btn { text-decoration: none; display: inline-flex; align-items: center; }
+@media (max-width: 760px) {
+  .hotel-map { grid-template-columns: 1fr; }
+  .map-frame, .hotel-map-compact .map-frame { min-height: 260px; }
+}

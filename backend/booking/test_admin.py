@@ -11,11 +11,12 @@ from django.db import connection
 from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 
+from .login_lock import LoginLock
 from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
 from .reviews import RoomReview
 from .roles import GuestRole
 
-MODELS = [Guest, GuestRole, RoomType, Room, Booking, BookingRoom, Payment, RoomReview]
+MODELS = [Guest, GuestRole, RoomType, Room, Booking, BookingRoom, Payment, RoomReview, LoginLock]
 TODAY = datetime.date.today()
 
 

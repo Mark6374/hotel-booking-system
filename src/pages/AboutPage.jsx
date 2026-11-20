@@ -1,3 +1,5 @@
+import HotelMap from '../components/HotelMap.jsx';
+
 const reviews = [
   { stars: 5, quote: 'Checked in without a single piece of paper changing hands. The Deluxe room view over the courtyard was worth every cent.', author: 'Amina S.' },
   { stars: 5, quote: 'Front desk resolved a date mix-up in under a minute because they could see the same booking I could. Rare these days.', author: 'Daniel B.' },
@@ -45,6 +47,11 @@ export default function AboutPage({ headingRef }) {
             <span>24/7</span>
           </div>
         </div>
+      </section>
+
+      <section className="about-section" aria-labelledby="map-title">
+        <h2 id="map-title">Where to find us</h2>
+        <HotelMap />
       </section>
 
       <section className="about-section">

@@ -108,3 +108,7 @@ class Payment(models.Model):
 
     def __str__(self):
         return 'Payment #%s' % self.payment_id
+
+
+# Login protection table (backend/db/07_login_lock.sql); imported here so Django registers the model.
+from .login_lock import LoginLock  # noqa: E402,F401

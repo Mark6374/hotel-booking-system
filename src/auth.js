@@ -55,6 +55,7 @@ function toAccount(a) {
     last_name: a.last_name,
     phone: a.phone,
     role: a.role || 'guest',
+    locked_minutes: a.locked_minutes || 0,
     active: a.is_active !== false
   };
 }
@@ -168,6 +169,12 @@ export async function setRole(id, role) {
 
 export async function setActive(id, active) {
   await api('/admin/accounts/' + id + '/', { method: 'PATCH', body: { is_active: active } });
+  await loadAccounts();
+}
+
+/* Removes the 15-minute lock after 5 wrong passwords. */
+export async function unlockAccount(id) {
+  await api('/admin/accounts/' + id + '/', { method: 'PATCH', body: { unlock: true } });
   await loadAccounts();
 }
 

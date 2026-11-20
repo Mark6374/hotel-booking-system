@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getDb, money, plural, bookingDetails, setRoomTypePrice, resetDb, TABLES } from '../db.js';
 import { useAuth } from '../hooks/useAuth.js';
-import { ROLES, ROLE_LABEL, setRole, setActive, deleteAccount, loadAccounts } from '../auth.js';
+import { ROLES, ROLE_LABEL, setRole, setActive, deleteAccount, loadAccounts, unlockAccount } from '../auth.js';
 import { loadReviewSummary, subscribeReviews, getReviewSummary } from '../reviews.js';
 import { toast } from '../toast.js';
 
@@ -135,8 +135,17 @@ function Users({ me }) {
                       {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                     </select>
                   </td>
-                  <td>{a.active ? <span className="badge good">Active</span> : <span className="badge bad">Blocked</span>}</td>
+                  <td>
+                    {a.active ? <span className="badge good">Active</span> : <span className="badge bad">Blocked</span>}
+                    {a.locked_minutes > 0 && <span className="badge bad"> Locked {a.locked_minutes} min</span>}
+                  </td>
                   <td className="row-actions">
+                    {!self && a.locked_minutes > 0 && (
+                      <button type="button" className="btn btn-sm btn-ghost"
+                        onClick={() => run(() => unlockAccount(a.account_id), `${a.email} unlocked.`)}>
+                        Unlock login
+                      </button>
+                    )}
                     {!self && (
                       <button type="button" className="btn btn-sm btn-ghost"
                         onClick={() => run(() => setActive(a.account_id, !a.active), `${a.email} ${a.active ? 'blocked' : 'unblocked'}.`)}>

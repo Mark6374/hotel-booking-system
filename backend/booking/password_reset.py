@@ -20,6 +20,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import login_lock
 from .models import Guest
 from .roles import role_info
 
@@ -103,4 +104,5 @@ class PasswordResetConfirmView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
         guest.set_password(new)
         guest.save(update_fields=['password'])
+        login_lock.clear(guest)  # the owner proved who she is: unlock at once
         return Response({'detail': 'Password changed. You can log in with the new password.'})

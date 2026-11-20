@@ -40,9 +40,24 @@ const TOKEN_KEY = 'juniper-court-token-v2';
 
 // ---------- API helpers (only for setup, not for the checks) ----------
 
+// Login and sign-up are limited to 20 requests per minute per address
+// (AuthRateThrottle). pace() waits when the next request would pass 18.
+const authTimes = [];
+async function pace() {
+  const now = Date.now();
+  while (authTimes.length && now - authTimes[0] > 61000) authTimes.shift();
+  if (authTimes.length >= 18) {
+    const wait = 61000 - (now - authTimes[0]);
+    await new Promise((res) => setTimeout(res, wait));
+    return pace();
+  }
+  authTimes.push(Date.now());
+}
+
 const tokens = {};
 async function tokenOf(who) {
   if (tokens[who]) return tokens[who];
+  await pace();
   const r = await fetch(API + '/auth/login/', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ACCOUNTS[who]),
   });
@@ -79,6 +94,12 @@ async function go(page, view) {
     const h = document.querySelector('main h1');
     return h && !/Loading/.test(h.textContent);
   });
+}
+
+// messages appear as pop-up notifications (toasts) since week 12
+async function toastText(page, re) {
+  await page.waitForFunction((src) => Array.from(document.querySelectorAll('.toast-text')).some((e) => new RegExp(src).test(e.textContent)), re.source);
+  return clean((await page.$$eval('.toast-text', (els) => els.map((e) => e.textContent))).find((x) => re.test(x)));
 }
 
 const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
@@ -132,6 +153,7 @@ async function myBookingRefs(page) {
 
 async function register(page, f) {
   await go(page, 'register');
+  await pace();
   await page.fill('#reg-first_name', f.first);
   await page.fill('#reg-last_name', f.last);
   await page.fill('#reg-email', f.email);
@@ -142,7 +164,8 @@ async function register(page, f) {
   await page.locator('form').getByRole('button', { name: /create|sign up/i }).click();
   await page.waitForTimeout(800);
 }
-const NEW_USER = { first: 'Aru', last: 'Test', email: 'aru@example.com', phone: '+7 701 123 4567', password: 'Hotel2026a' };
+// a new e-mail every run: "reset demo data" keeps accounts registered on the site
+const NEW_USER = { first: 'Aru', last: 'Test', email: 'aru' + Date.now() + '@example.com', phone: '+7 701 123 4567', password: 'Hotel2026a' };
 
 async function staffRow(page, ref) {
   return page.locator('table tbody tr', { hasText: ref });
@@ -188,7 +211,7 @@ const TESTS = [
 
   ['UI-06', 'Room details window', null, async (page, t) => {
     await go(page, 'book');
-    await page.click('.rt:has-text("Suite") >> text=See photos and details');
+    await page.click('.rt:has-text("Suite") >> text=/See photos/');
     const d = clean(await page.textContent('[role=dialog]'));
     await t.shot();
     await page.locator('[role=dialog]').getByRole('button', { name: 'Close' }).last().click();
@@ -259,7 +282,7 @@ const TESTS = [
     await page.fill('#login-email', 'saltanat@gmail.com');
     await page.fill('#login-password', 'demo12345');
     await page.locator('form.auth-form').getByRole('button', { name: 'Log in' }).click();
-    await page.waitForFunction(() => /Amina/.test(document.querySelector('main h1')?.textContent || ''));
+    await page.waitForFunction(() => /Saltanat/.test(document.querySelector('main h1')?.textContent || ''));
     const refs = (await page.$$eval('.booking-card .ref', (e) => e.map((x) => x.textContent))).sort().join(',');
     return { actual: `page "${await heading(page)}", bookings ${refs}`, pass: refs === 'HB-0001,HB-0003' };
   }],
@@ -317,12 +340,11 @@ const TESTS = [
   ['UI-20', 'Cancel my booking', 'amina', async (page, t) => {
     await go(page, 'account');
     await page.click('text=Cancel booking HB-0001');
-    await page.waitForFunction(() => /cancelled/.test(document.querySelector('main .status')?.textContent || ''));
-    const status = clean(await page.textContent('main .status'));
+    const status = await toastText(page, /cancelled/);
     await t.shot();
     const after = await standardLeft(page);
     return { actual: `${status} | then ${after}`,
-      pass: status === 'Booking HB-0001 cancelled. The payment is marked as refunded.' && after === 'Standard: 3 of 3 left' };
+      pass: status === 'Booking HB-0001 cancelled. The payment is refunded.' && after === 'Standard: 3 of 3 left' };
   }],
 
   ['UI-21', "A guest sees only her own bookings", 'daniel', async (page) => {
@@ -346,7 +368,7 @@ const TESTS = [
     await go(page, 'staff');
     const rooms = await page.$$eval('.room', (els) => els.map((e) =>
       e.querySelector('strong').textContent.replace('Room ', '') + ' ' + e.querySelector('small').textContent));
-    const want = ['101 Booked by Amina Sadykova (HB-0001)', '102 Free for these dates', '103 Free for these dates',
+    const want = ['101 Booked by Saltanat Sultanakhmet (HB-0001)', '102 Free for these dates', '103 Free for these dates',
       '201 Booked by Daniel Brooks (HB-0002)', '202 Booked by Daniel Brooks (HB-0005)', '301 Free for these dates'];
     return { actual: rooms.join('; '), pass: JSON.stringify(rooms) === JSON.stringify(want) };
   }],
@@ -371,10 +393,10 @@ const TESTS = [
     await go(staff, 'staff');
     const row = await staffRow(staff, 'HB-0006');
     await row.getByRole('button', { name: 'Check in' }).click();
-    await staff.waitForFunction(() => /checked in/.test(document.querySelector('main .status')?.textContent || ''));
+    await toastText(staff, /checked in/);
     const s1 = clean(await row.locator('.badge').first().textContent());
     await row.getByRole('button', { name: 'Check out' }).click();
-    await staff.waitForFunction(() => /checked out/.test(document.querySelector('main .status')?.textContent || ''));
+    await toastText(staff, /checked out/);
     const s2 = clean(await row.locator('.badge').first().textContent());
     await staff.screenshot({ path: path.join(SHOTS, 'UI-25.png') }); t.shotTaken = true;
     return { actual: `HB-0006 today: Confirmed → ${s1} → ${s2}`, pass: /Checked in/i.test(s1) && s2 === 'Completed' };
@@ -386,8 +408,7 @@ const TESTS = [
     await page.click('.admin-side >> text=Room prices');
     await page.fill('#price-1', '70');
     await page.locator('.price-row', { hasText: 'Standard' }).getByRole('button', { name: 'Save' }).click();
-    await page.waitForFunction(() => /now costs/.test(document.querySelector('main .status')?.textContent || ''));
-    const status = clean(await page.textContent('main .status'));
+    const status = await toastText(page, /now costs/);
     await t.shot();
     const visitor = await t.as(null);
     await go(visitor, 'book');
@@ -398,14 +419,141 @@ const TESTS = [
     return { actual: `${status} | guests see "${price.slice(0, 30)}" | HB-0001 total ${(old.match(/\$\d+/) || ['?'])[0]}`,
       pass: status.startsWith('Standard now costs $70') && price.includes('$70 per night') && old.includes('$180') };
   }],
+  // ================= Week 12: login protection (5 wrong passwords -> 15 min lock) =================
 ];
+
+const LOCK_MSG = 'Too many wrong passwords. This account is locked for 15 more minutes.';
+const SALT = ACCOUNTS.amina;
+
+// One try with the login form. Returns the message the page shows
+// (the same text the server sent), or 'LOGGED IN'.
+async function tryLogin(page, email, password) {
+  if (!(await page.locator('#login-email').count())) await go(page, 'login');
+  await pace();
+  await page.fill('#login-email', email);
+  await page.fill('#login-password', password);
+  const [resp] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/auth/login/') && r.request().method() === 'POST'),
+    page.locator('form.auth-form').getByRole('button', { name: 'Log in' }).click(),
+  ]);
+  if (resp.status() === 429) {
+    // the 20-per-minute limit for the whole address (not our lock): wait and try again
+    await new Promise((res) => setTimeout(res, 61000));
+    authTimes.length = 0;
+    return tryLogin(page, email, password);
+  }
+  if (resp.status() === 200) {
+    await page.waitForFunction(() => !document.querySelector('#login-email'));
+    return 'LOGGED IN';
+  }
+  const detail = (await resp.json()).detail || ('HTTP ' + resp.status());
+  await page.waitForFunction((m) => (document.querySelector('.tx-fail')?.textContent || '').includes(m), detail);
+  return clean(detail);
+}
+async function wrongTimes(page, n, email = SALT.email) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(await tryLogin(page, email, 'wrong-pass1'));
+  return out;
+}
+async function adminUsers(page) {
+  await go(page, 'admin');
+  await page.click('.admin-side >> text=Users and roles');
+  await page.waitForSelector('table tbody tr');
+}
+
+TESTS.push(
+  ['UI-27', '4 wrong passwords do not lock the account', null, async (page) => {
+    const errs = await wrongTimes(page, 4);
+    const right = await tryLogin(page, SALT.email, SALT.password);
+    return { actual: `4 × "${errs[0]}", then right password: ${right}`,
+      pass: errs.every((e) => e === 'Invalid email or password.') && right === 'LOGGED IN' };
+  }],
+
+  ['UI-28', '5th wrong password locks the account for 15 minutes', null, async (page, t) => {
+    await wrongTimes(page, 4);
+    // 5th try by hand, so the screenshot shows the real message on the page
+    await pace();
+    await page.fill('#login-email', SALT.email);
+    await page.fill('#login-password', 'wrong-pass1');
+    await page.locator('form.auth-form').getByRole('button', { name: 'Log in' }).click();
+    await page.waitForSelector('.tx-fail');
+    const fifth = clean(await page.textContent('.tx-fail'));
+    await t.shot();
+    return { actual: `5th try: "${fifth}"`, pass: fifth.startsWith(LOCK_MSG) };
+  }],
+
+  ['UI-29', 'Right password is refused while locked', null, async (page) => {
+    const errs = await wrongTimes(page, 5);
+    const right = await tryLogin(page, SALT.email, SALT.password);
+    return { actual: `5 wrong: ${errs.map((e) => e.slice(0, 12)).join(' / ')}; right password: "${right.slice(0, 70)}…"`,
+      pass: errs[4].startsWith(LOCK_MSG) && right.startsWith(LOCK_MSG) };
+  }],
+
+  ['UI-30', 'Lock is only for that account', null, async (page) => {
+    await wrongTimes(page, 5);
+    const other = await tryLogin(page, ACCOUNTS.daniel.email, ACCOUNTS.daniel.password);
+    return { actual: `Saltanat locked, Daniel: ${other}`, pass: other === 'LOGGED IN' };
+  }],
+
+  ['UI-31', 'Unknown e-mail: always the usual message, no lock', null, async (page) => {
+    const errs = await wrongTimes(page, 6, 'nobody@example.com');
+    return { actual: `6 × "${errs[5]}"`, pass: errs.every((e) => e === 'Invalid email or password.') };
+  }],
+
+  ['UI-32', 'E-mail in capital letters counts for the same account', null, async (page) => {
+    await wrongTimes(page, 3, SALT.email);
+    const errs = await wrongTimes(page, 2, SALT.email.toUpperCase());
+    return { actual: `3 × lower case, 2 × UPPER CASE → "${errs[1].slice(0, 60)}…"`, pass: errs[1].startsWith(LOCK_MSG) };
+  }],
+
+  ['UI-33', 'Admin sees which account is locked', null, async (page, t) => {
+    await wrongTimes(page, 5);
+    const admin = await t.as('admin');
+    await adminUsers(admin);
+    const row = clean(await admin.locator('table tbody tr', { hasText: SALT.email }).textContent());
+    await admin.screenshot({ path: path.join(SHOTS, 'UI-33.png') }); t.shotTaken = true;
+    return { actual: row.includes('Locked 15 min') ? `${SALT.email}: "Locked 15 min" + "Unlock login" button` : row.slice(0, 120),
+      pass: row.includes('Locked 15 min') && row.includes('Unlock login') };
+  }],
+
+  ['UI-34', 'Admin unlocks the account', null, async (page, t) => {
+    await wrongTimes(page, 5);
+    const admin = await t.as('admin');
+    await adminUsers(admin);
+    await admin.locator('table tbody tr', { hasText: SALT.email }).getByRole('button', { name: 'Unlock login' }).click();
+    const msg = await toastText(admin, /unlocked/);
+    await admin.waitForTimeout(300);
+    const row = clean(await admin.locator('table tbody tr', { hasText: SALT.email }).textContent());
+    return { actual: `"${msg}", badge ${row.includes('Locked') ? 'STILL THERE' : 'gone'}`,
+      pass: msg === SALT.email + ' unlocked.' && !row.includes('Locked') };
+  }],
+
+  ['UI-35', 'After unlock the guest logs in at once', null, async (page, t) => {
+    await wrongTimes(page, 5);
+    const admin = await t.as('admin');
+    await adminUsers(admin);
+    await admin.locator('table tbody tr', { hasText: SALT.email }).getByRole('button', { name: 'Unlock login' }).click();
+    await toastText(admin, /unlocked/);
+    const right = await tryLogin(page, SALT.email, SALT.password);
+    return { actual: `after unlock: ${right}`, pass: right === 'LOGGED IN' };
+  }],
+
+  ['UI-36', 'A guest cannot open the admin page to unlock', 'daniel', async (page) => {
+    await go(page, 'admin');
+    const h = await heading(page);
+    return { actual: `guest opens Admin: "${h}"`, pass: h === 'This page is not for your account' };
+  }],
+);
 
 // ---------- runner ----------
 
 (async () => {
   const browser = await chromium.launch();
   const results = [];
+  // ONLY=UI-27,UI-29 node testing/run-ui-tests.cjs  -> run only these tests
+  const only = (process.env.ONLY || '').split(',').filter(Boolean);
   for (const [id, title, who, fn] of TESTS) {
+    if (only.length && !only.includes(id)) continue;
     let r;
     const extra = [];
     let main = null;

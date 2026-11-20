@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getDb, money, validateSearch, todayISO } from '../db.js';
 import RoomPhoto from '../components/RoomPhoto.jsx';
 import { TypeRating } from '../components/Stars.jsx';
+import HotelMap from '../components/HotelMap.jsx';
 import heroPhoto from '../assets/rooms/view-1.jpg';
 
 const FEATURES = [
@@ -92,6 +93,14 @@ export default function HomePage({ headingRef, me, search, onSearch, onDetails, 
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="home-section" aria-labelledby="home-map-title">
+        <div className="section-head">
+          <h2 id="home-map-title">In the heart of Almaty</h2>
+          <button type="button" className="link-btn" onClick={() => onGo('about')}>Contacts</button>
+        </div>
+        <HotelMap compact />
       </section>
 
       {!me && (

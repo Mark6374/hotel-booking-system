@@ -14,6 +14,7 @@ from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import login_lock
 from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
 from .roles import ROLES, GuestRole, IsActiveAccount, IsAdmin, IsStaff, account_payload, role_info
 from .serializers import clean_phone
@@ -292,7 +293,8 @@ class AccountListView(APIView):
             r = roles.get(g.guest_id)
             out.append({'guest_id': g.guest_id, 'first_name': g.first_name, 'last_name': g.last_name,
                         'email': g.email, 'phone': g.phone,
-                        'role': r.role if r else 'guest', 'is_active': r.is_active if r else True})
+                        'role': r.role if r else 'guest', 'is_active': r.is_active if r else True,
+                        'locked_minutes': login_lock.minutes_left(g)})
         return Response(out)
 
 
@@ -312,6 +314,10 @@ class AccountAdminView(APIView):
         g, error = self._target(request, pk)
         if error:
             return error
+        if request.data.get('unlock'):
+            # admin removes the 15-minute login lock (login_lock.py)
+            login_lock.clear(g)
+            return Response(account_payload(g))
         role, active = role_info(g)
         if 'role' in request.data:
             role = request.data['role']
