@@ -171,7 +171,8 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@junipercourt
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['booking.auth.BearerTokenAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.AllowAny'],
-    'DEFAULT_THROTTLE_RATES': {'auth': '20/min', 'review_write': '30/hour', 'photo_write': '20/hour'},
+    'DEFAULT_THROTTLE_RATES': {'auth': '20/min', 'review_write': '30/hour', 'photo_write': '20/hour',
+                                'assistant': '20/min'},
 }
 
 # ---------------------------------------------------------------- logging

@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
-const NS = ['common', 'nav', 'theme', 'lang', 'toast', 'gate', 'notice', 'net', 'footer', 'home', 'search', 'room', 'price',
+const NS = ['ai', 'common', 'nav', 'theme', 'lang', 'toast', 'gate', 'notice', 'net', 'footer', 'home', 'search', 'room', 'price',
   'book', 'sum', 'n', 'pay', 'v', 'f', 'method', 'log', 'confirm', 'bk', 'forbidden', 'pw', 'about', 'hotel', 'map', 'stars',
   'reg', 'reset', 'login', 'acc', 'photo', 'rev', 'staff', 'th', 'admin', 'mod', 'chat', 'cal', 'status', 'role', 'srv',
   'roomType', 'roomDesc', 'meta'];

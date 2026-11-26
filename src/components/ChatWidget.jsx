@@ -1,21 +1,25 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { subscribeChat, getChat, loadCustomerHistory, loadCustomerOlder, sendCustomerMessage, markCustomerRead } from '../chat.js';
 import { ChatThread, ChatComposer } from './ChatMessages.jsx';
+import AssistantChat from './AssistantChat.jsx';
 import { t } from '../i18n/index.js';
 
-/* Floating "Support" button for guests (and staff). Admins answer in the Admin panel. */
-export default function ChatWidget({ me, onGo }) {
+/* Floating chat button for guests (and staff). Two tabs: the AI assistant (no login needed)
+   and the live support chat with the front office. Admins answer in the Admin panel. */
+export default function ChatWidget({ me, onGo, onPick }) {
   const chat = useSyncExternalStore(subscribeChat, getChat);
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState('ai');
+  const support = tab === 'support';
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!open || !me || chat.loaded) return;
+    if (!open || !support || !me || chat.loaded) return;
     loadCustomerHistory().catch((e) => setError(e.message));
-  }, [open, me, chat.loaded]);
+  }, [open, support, me, chat.loaded]);
 
   // reading the chat while it is open marks the hotel's messages read
-  useEffect(() => { if (open && me) markCustomerRead(); }, [open, me, chat.unread, chat.messages.length]);
+  useEffect(() => { if (open && support && me) markCustomerRead(); }, [open, support, me, chat.unread, chat.messages.length]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -34,16 +38,28 @@ export default function ChatWidget({ me, onGo }) {
         <section className="chat-panel" role="dialog" aria-labelledby="chat-title">
           <header className="chat-head">
             <div>
-              <h2 id="chat-title">{t('chat.support')}</h2>
+              <h2 id="chat-title" className="sr">{t('chat.support')}</h2>
+              <div className="chat-tabs" role="tablist">
+                <button type="button" role="tab" aria-selected={!support} onClick={() => setTab('ai')}>{t('ai.tab')}</button>
+                <button type="button" role="tab" aria-selected={support} onClick={() => setTab('support')}>
+                  {t('chat.support')}{unread > 0 && <span className="chat-badge static">{unread}</span>}
+                </button>
+              </div>
               <span className="chat-status">
-                <span className={'dot ' + (online ? 'on' : 'off')} aria-hidden="true"></span>
-                {t(!me ? 'chat.loginToWrite' : online ? 'chat.replyFast' : 'chat.connecting')}
+                {support ? (
+                  <>
+                    <span className={'dot ' + (online ? 'on' : 'off')} aria-hidden="true"></span>
+                    {t(!me ? 'chat.loginToWrite' : online ? 'chat.replyFast' : 'chat.connecting')}
+                  </>
+                ) : t('ai.status')}
               </span>
             </div>
             <button type="button" className="modal-close" aria-label={t('chat.close')} onClick={() => setOpen(false)}>&times;</button>
           </header>
 
-          {!me ? (
+          {!support ? (
+            <AssistantChat onPick={(s) => { setOpen(false); onPick(s); }} />
+          ) : !me ? (
             <div className="chat-guest">
               <p>{t('chat.guestText')}</p>
               <div className="actions">
