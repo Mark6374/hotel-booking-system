@@ -11,6 +11,11 @@ mysql -u root -p < db/04_add_guest_role.sql   # new table guest_role (role + blo
 mysql -u root -p < db/05_business_rules.sql   # database refuses double booking, too many guests, past check-in
 mysql -u root -p < db/06_room_reviews.sql     # reviews (see REVIEWS_API.md)
 mysql -u root -p < db/07_login_lock.sql       # login lock: 5 wrong passwords -> 15 minutes
+mysql -u root -p < db/08_profile_photo.sql    # profile photos (PHOTOS_AND_CHAT_API.md)
+mysql -u root -p < db/09_chat.sql             # support chat
+mysql -u root -p < db/10_review_moderation.sql # reviews wait for admin approval
+mysql -u root -p < db/08_profile_photo.sql    # profile photos (PHOTOS_AND_CHAT_API.md)
+mysql -u root -p < db/09_chat.sql             # chat customer <-> admin (PHOTOS_AND_CHAT_API.md)
 python manage.py seed_demo                      # guests, rooms, bookings (password demo12345)
 python manage.py seed_roles                     # admin@junipercourt.example / Admin12345, staff@junipercourt.example / Staff12345
 ```
@@ -58,7 +63,7 @@ A blocked account gets 403 everywhere. The demo bank declines a card number that
 
 `USE_SQLITE=1 DB_NAME=x DB_USER=x DB_HOST=x DB_PORT=1 python manage.py test booking` runs 79 tests (8 auth + 11 frontend API + 9 privacy/phone + 19 reviews + 22 admin + 10 login lock).
 
-Room reviews: see `REVIEWS_API.md`. Staff admin panel: see `ADMIN.md`.
+Profile photos and chat: see `PHOTOS_AND_CHAT_API.md`. Room reviews: see `REVIEWS_API.md`. Staff admin panel: see `ADMIN.md`.
 
 ## Login lock (week 12)
 

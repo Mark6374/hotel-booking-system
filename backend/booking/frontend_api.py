@@ -14,9 +14,10 @@ from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import login_lock
+from . import chat, login_lock
 from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
 from .roles import ROLES, GuestRole, IsActiveAccount, IsAdmin, IsStaff, account_payload, role_info
+from .photos import GuestPhoto, photo_urls, prune_orphans
 from .serializers import clean_phone
 
 ACTIVE = ('Confirmed', 'CheckedIn')
@@ -288,11 +289,12 @@ class AccountListView(APIView):
     def get(self, request):
         guests = Guest.objects.exclude(password__isnull=True).exclude(password='').order_by('guest_id')
         roles = {r.guest_id: r for r in GuestRole.objects.all()}
+        photos = photo_urls(g.guest_id for g in guests)
         out = []
         for g in guests:
             r = roles.get(g.guest_id)
             out.append({'guest_id': g.guest_id, 'first_name': g.first_name, 'last_name': g.last_name,
-                        'email': g.email, 'phone': g.phone,
+                        'email': g.email, 'phone': g.phone, 'photo_url': photos.get(g.guest_id),
                         'role': r.role if r else 'guest', 'is_active': r.is_active if r else True,
                         'locked_minutes': login_lock.minutes_left(g)})
         return Response(out)
@@ -327,6 +329,7 @@ class AccountAdminView(APIView):
             v = request.data['is_active']
             active = v if isinstance(v, bool) else str(v).strip().lower() in ('1', 'true', 'yes', 'on')
         GuestRole.objects.update_or_create(guest_id=g.guest_id, defaults={'role': role, 'is_active': active})
+        chat.kick_sync(g.guest_id)      # open chat connections must not keep the old rights
         return Response(account_payload(g))
 
     def delete(self, request, pk):
@@ -336,6 +339,7 @@ class AccountAdminView(APIView):
         g.password = None
         g.save(update_fields=['password'])
         GuestRole.objects.filter(guest_id=g.guest_id).delete()
+        chat.kick_sync(g.guest_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -347,6 +351,7 @@ class ResetDemoView(APIView):
         call_command('seed_demo')
         call_command('seed_roles')
         _restore_accounts(kept)
+        prune_orphans()          # photo files of the wiped demo guests
         return Response({'ok': True, 'kept_accounts': len(kept)})
 
 
@@ -358,7 +363,8 @@ def _demo_emails():
 
 def _registered_accounts():
     """Accounts people created on the site (not the demo ones), with their password
-    hash and role, so a demo reset does not delete them. Their bookings are not kept."""
+    hash, role and profile photo, so a demo reset does not delete them. Their bookings
+    and chat messages are not kept."""
     demo = _demo_emails()
     rows = []
     for g in Guest.objects.exclude(password__isnull=True).exclude(password=''):
@@ -369,6 +375,7 @@ def _registered_accounts():
             'guest': {'guest_id': g.guest_id, 'first_name': g.first_name, 'last_name': g.last_name,
                       'email': g.email, 'phone': g.phone, 'password': g.password},
             'role': (role.role, role.is_active) if role else None,
+            'photo': GuestPhoto.objects.filter(guest_id=g.guest_id).values_list('file_name', flat=True).first(),
         })
     return rows
 
@@ -381,6 +388,8 @@ def _restore_accounts(rows):
         if Guest.objects.filter(email__iexact=data['email']).exists():
             continue
         g = Guest.objects.create(**data)
+        if row.get('photo'):
+            GuestPhoto.objects.update_or_create(guest_id=g.guest_id, defaults={'file_name': row['photo']})
         if row['role']:
             GuestRole.objects.update_or_create(guest_id=g.guest_id,
                                                defaults={'role': row['role'][0], 'is_active': row['role'][1]})

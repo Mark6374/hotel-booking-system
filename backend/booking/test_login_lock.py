@@ -18,9 +18,11 @@ from .login_lock import LoginLock
 from .models import Guest
 from .password_reset import make_reset_token
 from .roles import GuestRole
+from .photos import GuestPhoto
+from .chat import ChatMessage, Conversation
 
 LOGIN = '/api/auth/login/'
-MODELS = [Guest, GuestRole, LoginLock]
+MODELS = [Guest, GuestRole, GuestPhoto, Conversation, ChatMessage, LoginLock]
 REAL_NOW = datetime.datetime.now
 
 

@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': process.env.API_TARGET || 'http://127.0.0.1:8000'
+      '/api': process.env.API_TARGET || 'http://127.0.0.1:8000',
+      // the chat WebSocket (backend/PHOTOS_AND_CHAT_API.md)
+      '/ws': { target: process.env.API_TARGET || 'http://127.0.0.1:8000', ws: true }
     }
   }
 });

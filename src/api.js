@@ -40,11 +40,13 @@ export async function api(path, { method = 'GET', body } = {}) {
   const headers = { Accept: 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = 'Bearer ' + token;
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  // A FormData body (file upload) sets its own multipart Content-Type with the boundary.
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
 
   let res;
   try {
-    res = await fetch(BASE + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+    res = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
   } catch (e) {
     throw new ApiError('Cannot reach the server. Is the Django backend running on port 8000?', 0, null);
   }
@@ -53,4 +55,12 @@ export async function api(path, { method = 'GET', body } = {}) {
   try { data = await res.json(); } catch (e) { /* empty or HTML body */ }
   if (!res.ok) throw new ApiError(messageFrom(data, res.status), res.status, data);
   return data;
+}
+
+/* Photo paths from the API ('/api/photos/x.jpg') work as they are with the Vite proxy; with an
+   absolute VITE_API_URL the backend host is put in front. */
+export function mediaUrl(path) {
+  if (!path) return '';
+  if (/^https?:/.test(path) || !/^https?:/.test(BASE)) return path;
+  return BASE.replace(/\/api\/?$/, '') + path;
 }

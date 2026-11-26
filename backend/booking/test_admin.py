@@ -15,8 +15,10 @@ from .login_lock import LoginLock
 from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
 from .reviews import RoomReview
 from .roles import GuestRole
+from .photos import GuestPhoto
+from .chat import ChatMessage, Conversation
 
-MODELS = [Guest, GuestRole, RoomType, Room, Booking, BookingRoom, Payment, RoomReview, LoginLock]
+MODELS = [Guest, GuestRole, GuestPhoto, Conversation, ChatMessage, RoomType, Room, Booking, BookingRoom, Payment, RoomReview, LoginLock]
 TODAY = datetime.date.today()
 
 
@@ -57,7 +59,7 @@ class AdminTests(TransactionTestCase):
         self.payment = Payment.objects.create(booking=self.b_new, amount=180, payment_method='Card', payment_status='Paid',
                                payment_date=datetime.datetime.now())
         self.review = RoomReview.objects.create(booking_room=self.b_done.bookingroom.first(), rating=4,
-                                                comment='Nice <b>room</b>')
+                                                comment='Nice <b>room</b>', status='Published')
         self.su = User.objects.create_superuser('boss', 'b@example.com', 'Sup3r-secret-pass')
         self.client.force_login(self.su)
 

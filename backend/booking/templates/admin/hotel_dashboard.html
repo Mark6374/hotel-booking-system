@@ -16,6 +16,7 @@
     <div class="hb-card {% if dashboard.rooms_in_maintenance %}alert{% endif %}"><a href="{% url 'admin:booking_room_changelist' %}?status__exact=Maintenance"><div class="n">{{ dashboard.rooms_in_maintenance }}</div><div class="l">Rooms in maintenance</div></a></div>
     <div class="hb-card"><div class="n">{{ dashboard.revenue_30d|floatformat:"-2" }}</div><div class="l">Paid, last 30 days (refunded {{ dashboard.refunds_30d|floatformat:"-2" }})</div></div>
     <div class="hb-card"><a href="{% url 'admin:booking_roomreview_changelist' %}"><div class="n">{% if dashboard.reviews_average %}{{ dashboard.reviews_average }}{% else %}&ndash;{% endif %} <span class="hb-stars">&#9733;</span></div><div class="l">{{ dashboard.reviews_published }} published reviews ({{ dashboard.reviews_this_week }} new this week)</div></a></div>
+    <div class="hb-card {% if dashboard.reviews_pending %}alert{% endif %}"><a href="{% url 'admin:booking_roomreview_changelist' %}?status__exact=Pending"><div class="n">{{ dashboard.reviews_pending }}</div><div class="l">Reviews waiting for approval</div></a></div>
     <div class="hb-card {% if dashboard.reviews_hidden %}alert{% endif %}"><a href="{% url 'admin:booking_roomreview_changelist' %}?status__exact=Hidden"><div class="n">{{ dashboard.reviews_hidden }}</div><div class="l">Hidden reviews</div></a></div>
   </div>
 

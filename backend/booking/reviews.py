@@ -13,9 +13,10 @@ from django.db.models import Avg, Count, Q
 
 from .models import BookingRoom
 
-PUBLISHED = 'Published'
-HIDDEN = 'Hidden'
-STATUSES = (PUBLISHED, HIDDEN)
+PENDING = 'Pending'      # written by a guest, waiting for an admin (not on the website yet)
+PUBLISHED = 'Published'  # approved by an admin: visible and counted in the ratings
+HIDDEN = 'Hidden'        # rejected or removed by an admin
+STATUSES = (PENDING, PUBLISHED, HIDDEN)
 
 # A stay can be reviewed once the guest has left.
 REVIEWABLE_BOOKING_STATUSES = ('Completed',)
@@ -34,7 +35,7 @@ class RoomReview(models.Model):
                                         on_delete=models.PROTECT, related_name='review')
     rating = models.PositiveSmallIntegerField()
     comment = models.CharField(max_length=MAX_COMMENT_LENGTH, blank=True, default='')
-    status = models.CharField(max_length=10, default=PUBLISHED)
+    status = models.CharField(max_length=10, default=PENDING)   # db/10_review_moderation.sql
     created_at = models.DateTimeField(default=now)
     updated_at = models.DateTimeField(default=now)   # set when the author edits, see reviews_api.py
 

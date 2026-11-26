@@ -12,9 +12,9 @@ from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from .models import Booking, BookingRoom, Guest, Room, RoomType
-from .reviews import (HIDDEN, MAX_COMMENT_LENGTH, PUBLISHED, REVIEWABLE_BOOKING_STATUSES, STATUSES,
+from .reviews import (HIDDEN, MAX_COMMENT_LENGTH, PENDING, PUBLISHED, REVIEWABLE_BOOKING_STATUSES, STATUSES,
                       RoomReview, now, public_name, rating_summary)
-from .roles import IsActiveAccount, IsStaff, role_info
+from .roles import IsActiveAccount, IsAdmin, role_info
 
 
 def _err(message, code=status.HTTP_400_BAD_REQUEST, **extra):
@@ -156,7 +156,9 @@ class RoomReviewListCreateView(generics.ListAPIView):
                         status.HTTP_409_CONFLICT)
         try:
             with transaction.atomic():
-                review = RoomReview.objects.create(booking_room=free[0], rating=d['rating'], comment=d['comment'])
+                # every new review waits for an admin before it appears on the website
+                review = RoomReview.objects.create(booking_room=free[0], rating=d['rating'], comment=d['comment'],
+                                                   status=PENDING)
         except IntegrityError:                       # two requests at the same moment
             return _err('You have already reviewed this room for that stay.', status.HTTP_409_CONFLICT)
         review = _with_stay(RoomReview.objects).get(pk=review.pk)
@@ -193,6 +195,10 @@ class ReviewDetailView(APIView):
                 setattr(review, f, d[f])
                 fields.append(f)
         review.updated_at = now()
+        if review.status == PUBLISHED:
+            # an approved text that changes must be approved again
+            review.status = PENDING
+            fields.append('status')
         review.save(update_fields=fields + ['updated_at'])
         return Response(review_payload(review, request.user))
 
@@ -205,12 +211,13 @@ class ReviewDetailView(APIView):
 
 
 class ReviewModerateView(APIView):
-    """POST /api/reviews/<id>/moderate/ {status: Hidden|Published}  - staff and admin"""
-    permission_classes = [IsStaff]
+    """POST /api/reviews/<id>/moderate/ {status: Published|Hidden}  - admin only.
+    Published = approve (the review appears on the website), Hidden = reject / remove."""
+    permission_classes = [IsAdmin]
 
     def post(self, request, pk):
         new = request.data.get('status')
-        if new not in STATUSES:
+        if new not in (PUBLISHED, HIDDEN):
             return _err('status must be Published or Hidden.')
         n = RoomReview.objects.filter(pk=pk).update(status=new)
         if not n:

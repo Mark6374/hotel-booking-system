@@ -12,3 +12,6 @@ backend/.env
 # Claude Code local files
 .claude/
 *.zip
+
+# Uploaded profile photos
+backend/media/

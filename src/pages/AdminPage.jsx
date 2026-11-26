@@ -4,10 +4,17 @@ import { useAuth } from '../hooks/useAuth.js';
 import { ROLES, ROLE_LABEL, setRole, setActive, deleteAccount, loadAccounts, unlockAccount } from '../auth.js';
 import { loadReviewSummary, subscribeReviews, getReviewSummary } from '../reviews.js';
 import { toast } from '../toast.js';
+import { subscribeChat, getChat } from '../chat.js';
+import { allReviews } from '../reviews.js';
+import AdminReviews from '../components/AdminReviews.jsx';
+import AdminChat from '../components/AdminChat.jsx';
+import Avatar from '../components/Avatar.jsx';
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
   { id: 'users', label: 'Users and roles' },
+  { id: 'reviews', label: 'Reviews' },
+  { id: 'chat', label: 'Support chat' },
   { id: 'prices', label: 'Room prices' },
   { id: 'data', label: 'Database' }
 ];
@@ -121,7 +128,12 @@ function Users({ me }) {
               return (
                 <tr key={a.account_id}>
                   <td>{a.account_id}</td>
-                  <td>{a.first_name} {a.last_name}{self && <small className="cell-sub">That's you</small>}</td>
+                  <td>
+                    <span className="name-cell">
+                      <Avatar person={a} size="sm" />
+                      <span>{a.first_name} {a.last_name}{self && <small className="cell-sub">That's you</small>}</span>
+                    </span>
+                  </td>
                   <td>{a.email}</td>
                   <td>{a.phone}</td>
                   <td>
@@ -288,6 +300,15 @@ function Data() {
 
 export default function AdminPage({ headingRef, me }) {
   const [section, setSection] = useState('overview');
+  const [pending, setPending] = useState(0);
+  const chat = useSyncExternalStore(subscribeChat, getChat);
+
+  // badge "reviews waiting" in the side menu
+  useEffect(() => {
+    allReviews('Pending').then((rows) => setPending(rows.length)).catch(() => {});
+  }, []);
+
+  const badge = { reviews: pending, chat: chat.unreadTotal };
 
   return (
     <div className="admin-layout">
@@ -297,6 +318,7 @@ export default function AdminPage({ headingRef, me }) {
           {SECTIONS.map((s) => (
             <button key={s.id} type="button" className="side-link" aria-current={section === s.id ? 'page' : undefined} onClick={() => setSection(s.id)}>
               {s.label}
+              {badge[s.id] > 0 && <span className="chat-badge static" aria-label={`${badge[s.id]} new`}>{badge[s.id]}</span>}
             </button>
           ))}
         </nav>
@@ -308,6 +330,8 @@ export default function AdminPage({ headingRef, me }) {
         </div>
         {section === 'overview' && <Overview />}
         {section === 'users' && <Users me={me} />}
+        {section === 'reviews' && <AdminReviews onCount={setPending} />}
+        {section === 'chat' && <AdminChat />}
         {section === 'prices' && <Prices />}
         {section === 'data' && <Data />}
       </div>

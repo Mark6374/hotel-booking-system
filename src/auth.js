@@ -55,6 +55,7 @@ function toAccount(a) {
     last_name: a.last_name,
     phone: a.phone,
     role: a.role || 'guest',
+    photo_url: a.photo_url || null,
     locked_minutes: a.locked_minutes || 0,
     active: a.is_active !== false
   };
@@ -217,4 +218,23 @@ export async function requestPasswordReset(email) {
 
 export async function confirmPasswordReset(token, newPassword) {
   return api('/auth/password-reset/confirm/', { method: 'POST', body: { token, new_password: newPassword } });
+}
+
+/* ---------- Profile photo ---------- */
+
+export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const PHOTO_MAX_MB = 5;
+
+export async function uploadPhoto(file) {
+  const form = new FormData();
+  form.append('photo', file);
+  const me = toAccount(await api('/account/photo/', { method: 'POST', body: form }));
+  set({ me });
+  return me;
+}
+
+export async function removePhoto() {
+  const me = toAccount(await api('/account/photo/', { method: 'DELETE' }));
+  set({ me });
+  return me;
 }

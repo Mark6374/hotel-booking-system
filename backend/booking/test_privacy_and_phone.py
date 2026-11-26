@@ -19,8 +19,10 @@ from .auth import make_token
 from .login_lock import LoginLock
 from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
 from .roles import GuestRole
+from .photos import GuestPhoto
+from .chat import ChatMessage, Conversation
 
-MODELS = [Guest, GuestRole, RoomType, Room, Booking, BookingRoom, Payment, LoginLock]
+MODELS = [Guest, GuestRole, GuestPhoto, Conversation, ChatMessage, RoomType, Room, Booking, BookingRoom, Payment, LoginLock]
 IN_A_MONTH = datetime.date.today() + datetime.timedelta(days=30)
 
 

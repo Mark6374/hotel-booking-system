@@ -8,6 +8,7 @@ from django.db import models
 from rest_framework.permissions import BasePermission
 
 from .models import Guest
+from .photos import photo_url_for
 
 ROLES = ('guest', 'staff', 'admin')
 
@@ -42,6 +43,7 @@ def account_payload(guest):
         'phone': guest.phone,
         'role': role,
         'is_active': active,
+        'photo_url': photo_url_for(guest),
     }
 
 

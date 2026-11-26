@@ -20,6 +20,9 @@ import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import Forbidden from './components/Forbidden.jsx';
 import RoomDetailsModal from './components/RoomDetailsModal.jsx';
 import Toaster from './components/Toaster.jsx';
+import ChatWidget from './components/ChatWidget.jsx';
+import Avatar from './components/Avatar.jsx';
+import { startChat, stopChat, subscribeChat, getChat } from './chat.js';
 
 const VIEWS = ['home', 'book', 'checkout', 'confirm', 'about', 'login', 'register', 'forgot', 'reset', 'account', 'staff', 'admin'];
 
@@ -94,6 +97,14 @@ export default function App() {
     if (needsLogin) setReturnTo(view);
   }, [needsLogin, view]);
 
+  // One chat connection per logged-in account (customer chat or the admin inbox).
+  const chatKey = me ? me.account_id + ':' + me.role + ':' + me.active : '';
+  useEffect(() => {
+    if (me) startChat(me); else stopChat();
+    return undefined;
+  }, [chatKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chat = useSyncExternalStore(subscribeChat, getChat);
+
   // Logged-in users have no business on the login / sign-up pages.
   useEffect(() => {
     if (me && (view === 'login' || view === 'register')) go(homeFor(me));
@@ -120,10 +131,11 @@ export default function App() {
 
   const navCurrent = view === 'checkout' || view === 'confirm' ? 'book' : view === 'forgot' || view === 'reset' ? 'login' : view;
 
-  function navBtn(name, label) {
+  function navBtn(name, label, count) {
     return (
       <button type="button" className="nav-btn" aria-current={navCurrent === name ? 'page' : undefined} onClick={() => go(name)}>
         {label}
+        {count > 0 && <span className="chat-badge static" aria-label={`${count} unread chat messages`}>{count}</span>}
       </button>
     );
   }
@@ -233,7 +245,7 @@ export default function App() {
               {navBtn('about', 'About')}
               {me && navBtn('account', 'My account')}
               {isStaff && navBtn('staff', 'Front desk')}
-              {isAdmin && navBtn('admin', 'Admin')}
+              {isAdmin && navBtn('admin', 'Admin', chat.unreadTotal)}
             </div>
 
             <div className="nav-group nav-user">
@@ -246,7 +258,7 @@ export default function App() {
               {me ? (
                 <>
                   <span className="user-pill" title={me.email}>
-                    <span className="avatar avatar-sm" aria-hidden="true">{me.first_name[0]}{me.last_name[0]}</span>
+                    <Avatar person={me} size="sm" />
                     <span className="user-pill-text">
                       {me.first_name}
                       <small>{ROLE_LABEL[me.role]}</small>
@@ -282,6 +294,7 @@ export default function App() {
         <RoomDetailsModal typeId={detailsType} onClose={() => setDetailsType(null)} />
       )}
 
+      {ready && data.loaded && <ChatWidget me={me} onGo={go} />}
       <Toaster />
     </>
   );

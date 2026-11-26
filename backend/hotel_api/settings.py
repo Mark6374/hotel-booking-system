@@ -41,6 +41,7 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
 ADMIN_URL = os.environ.get('DJANGO_ADMIN_URL', 'admin/').strip('/') + '/'
 
 INSTALLED_APPS = [
+    'daphne',                                   # must be first: makes `runserver` serve ASGI (the chat WebSocket)
     'booking.admin_apps.HotelAdminConfig',      # django.contrib.admin with the hotel's own AdminSite
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'channels',
     'booking',
 ]
 
@@ -65,6 +67,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'hotel_api.urls'
+ASGI_APPLICATION = 'hotel_api.asgi.application'   # HTTP + the chat WebSocket (WSGI_APPLICATION is not used any more)
 
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -105,6 +108,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # uses datetime.now() / date.today(), so "today" in the admin dashboard follows this setting.
 TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE', 'UTC')
 USE_TZ = False
+
+# ---------------------------------------------------------------- chat (WebSocket) and profile photos
+# The channel layer carries a chat message from the process that received it to the sockets of the
+# other people. In-memory works for ONE server process (development, a single daphne). With several
+# processes / servers set REDIS_URL (pip install channels-redis), or messages reach only some people.
+REDIS_URL = os.environ.get('REDIS_URL', '')
+if REDIS_URL:
+    CHANNEL_LAYERS = {'default': {'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                                  'CONFIG': {'hosts': [REDIS_URL]}}}
+else:
+    CHANNEL_LAYERS = {'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'}}
+
+# Uploaded profile photos (MEDIA_ROOT/avatars/). Keep this folder when you deploy a new version.
+MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT') or BASE_DIR / 'media')
 
 # ---------------------------------------------------------------- static files (admin CSS/JS)
 STATIC_URL = 'static/'
@@ -154,7 +171,7 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@junipercourt
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['booking.auth.BearerTokenAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.AllowAny'],
-    'DEFAULT_THROTTLE_RATES': {'auth': '20/min', 'review_write': '30/hour'},
+    'DEFAULT_THROTTLE_RATES': {'auth': '20/min', 'review_write': '30/hour', 'photo_write': '20/hour'},
 }
 
 # ---------------------------------------------------------------- logging

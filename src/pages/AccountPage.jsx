@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getDb, bookingDetails, fmtDate, money, ref, todayISO, cancelBooking, guestByEmail } from '../db.js';
-import { updateProfile, changePassword, passwordProblem, ROLE_LABEL, PHONE_RE, PHONE_MESSAGE } from '../auth.js';
+import { updateProfile, changePassword, passwordProblem, ROLE_LABEL, PHONE_RE, PHONE_MESSAGE, uploadPhoto, removePhoto, PHOTO_TYPES, PHOTO_MAX_MB } from '../auth.js';
+import Avatar from '../components/Avatar.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import { StarInput } from '../components/Stars.jsx';
@@ -74,6 +75,59 @@ function Bookings({ me, onGo }) {
   );
 }
 
+function PhotoPicker({ me }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function pick(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';                       // the same file can be picked again
+    if (!file) return;
+    if (PHOTO_TYPES.indexOf(file.type) === -1) { setError('Use a JPEG, PNG or WebP picture.'); return; }
+    if (file.size > PHOTO_MAX_MB * 1024 * 1024) { setError('The photo is too big. The limit is ' + PHOTO_MAX_MB + ' MB.'); return; }
+    setError('');
+    setBusy(true);
+    try {
+      await uploadPhoto(file);
+      toast('Profile photo saved.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setBusy(true);
+    try {
+      await removePhoto();
+      toast('Profile photo removed.', 'info');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="photo-picker">
+      <Avatar person={me} size="lg" />
+      <div className="photo-picker-body">
+        <strong>Profile photo</strong>
+        <p className="hint">JPEG, PNG or WebP, up to {PHOTO_MAX_MB} MB. It is cropped to a square. The hotel team sees it in the support chat.</p>
+        <div className="actions">
+          <label className={'btn btn-sm btn-primary file-btn' + (busy ? ' disabled' : '')}>
+            {busy ? 'Saving…' : me.photo_url ? 'Change photo' : 'Upload photo'}
+            <input type="file" accept={PHOTO_TYPES.join(',')} onChange={pick} disabled={busy} />
+          </label>
+          {me.photo_url && <button type="button" className="btn btn-sm btn-ghost" onClick={remove} disabled={busy}>Remove</button>}
+        </div>
+        {error && <p className="field-error" role="alert">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
 function Profile({ me }) {
   const [f, setF] = useState({ first_name: me.first_name, last_name: me.last_name, phone: me.phone });
   const [errors, setErrors] = useState({});
@@ -97,6 +151,8 @@ function Profile({ me }) {
   }
 
   return (
+    <>
+    <PhotoPicker me={me} />
     <form className="panel-form" noValidate onSubmit={submit}>
       <div className="row-2">
         <div className="field">
@@ -126,6 +182,7 @@ function Profile({ me }) {
       <p className="status" role="status">{status}</p>
       <button type="submit" className="btn btn-primary">Save changes</button>
     </form>
+    </>
   );
 }
 
@@ -214,7 +271,7 @@ function MyReviews({ onGo }) {
                     onSubmit={async (f) => {
                       await createReview(s.room_id, { ...f, booking_id: s.booking_id });
                       setWriting('');
-                      toast('Thank you! Your review of room ' + s.room_number + ' is published.');
+                      toast('Thank you! Your review of room ' + s.room_number + ' is sent. It appears on the site after the hotel checks it.');
                       load();
                     }} />
                 ) : (
@@ -237,16 +294,19 @@ function MyReviews({ onGo }) {
                 <strong>Room {r.room_number}</strong>
                 <ReviewForm idPrefix={'edit-' + r.review_id} initial={r} submitLabel="Save changes" onCancel={() => setEditing(0)}
                   onSubmit={async (f) => {
-                    await updateReview(r.review_id, f);
+                    const out = await updateReview(r.review_id, f);
                     setEditing(0);
-                    toast('Your review of room ' + r.room_number + ' is updated.');
+                    toast('Your review of room ' + r.room_number + ' is updated.' + (out.status === 'Pending' ? ' It will be visible again after the hotel checks it.' : ''));
                     load();
                   }} />
               </article>
             ) : (
               <ReviewItem key={r.review_id} r={r}>
                 {r.status === 'Hidden' && (
-                  <p className="note">A moderator hid this review. Only you can see it, and it cannot be edited.</p>
+                  <p className="note">The hotel did not publish this review. Only you can see it, and it cannot be edited.</p>
+                )}
+                {r.status === 'Pending' && (
+                  <p className="note note-info">Waiting for approval. It appears on the website after the hotel checks it.</p>
                 )}
                 <div className="row-actions">
                   {r.status !== 'Hidden' && (
@@ -266,7 +326,7 @@ function MyReviews({ onGo }) {
           ))}
         </div>
       )}
-      <p className="hint">You can rate a room once per stay, after you check out. Your name is shown as first name and initial only.
+      <p className="hint">You can rate a room once per stay, after you check out. Reviews are checked by the hotel before they appear. Your name is shown as first name and initial only.
         {' '}<button type="button" className="link-btn" onClick={() => onGo('book')}>Book another stay</button></p>
     </>
   );
@@ -323,7 +383,7 @@ export default function AccountPage({ headingRef, me, onGo }) {
   return (
     <>
       <div className="page-head account-head">
-        <div className="avatar" aria-hidden="true">{me.first_name[0]}{me.last_name[0]}</div>
+        <Avatar person={me} />
         <div>
           <h1 id="account-title" tabIndex={-1} ref={headingRef}>{me.first_name} {me.last_name}</h1>
           <p className="muted">{me.email} · <span className={'role-chip role-' + me.role}>{ROLE_LABEL[me.role]}</span></p>

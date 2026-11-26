@@ -19,7 +19,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
-from .reviews import HIDDEN, PUBLISHED, RoomReview
+from .reviews import HIDDEN, PENDING, PUBLISHED, RoomReview
 from .roles import ROLES, GuestRole
 from .serializers import PHONE_MESSAGE, PHONE_RE
 
@@ -29,7 +29,7 @@ BADGES = {
     'Confirmed': 'info', 'CheckedIn': 'ok', 'Completed': 'muted', 'Cancelled': 'bad',
     'Available': 'ok', 'Maintenance': 'warn',
     'Paid': 'ok', 'Refunded': 'warn', 'Failed': 'bad',
-    'Published': 'ok', 'Hidden': 'bad',
+    'Published': 'ok', 'Hidden': 'bad', 'Pending': 'warn',
 }
 
 
@@ -460,7 +460,8 @@ class PaymentAdmin(ReadOnlyMixin, HotelModelAdmin):
 # ======================================================================= reviews
 
 class ReviewForm(forms.ModelForm):
-    status = forms.ChoiceField(choices=[(PUBLISHED, 'Published (visible on the website)'),
+    status = forms.ChoiceField(choices=[(PENDING, 'Pending (waiting for approval, not on the website)'),
+                                        (PUBLISHED, 'Published (visible on the website)'),
                                         (HIDDEN, 'Hidden (removed from the website)')])
 
     class Meta:
@@ -532,7 +533,7 @@ class RoomReviewAdmin(HotelModelAdmin):
     def hide(self, request, queryset):
         self._set_status(request, queryset, HIDDEN)
 
-    @admin.action(description='Publish selected reviews', permissions=['change'])
+    @admin.action(description='Approve / publish selected reviews', permissions=['change'])
     def publish(self, request, queryset):
         self._set_status(request, queryset, PUBLISHED)
 

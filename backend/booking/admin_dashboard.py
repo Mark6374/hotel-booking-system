@@ -4,7 +4,7 @@ import datetime
 from django.db.models import Avg, Count, Sum
 
 from .models import Booking, BookingRoom, Payment, Room
-from .reviews import PUBLISHED, HIDDEN, RoomReview
+from .reviews import PENDING, PUBLISHED, HIDDEN, RoomReview
 
 ACTIVE = ('Confirmed', 'CheckedIn')
 
@@ -45,6 +45,7 @@ def dashboard_stats():
         'reviews_published': review_row['n'],
         'reviews_average': round(float(review_row['avg']), 2) if review_row['avg'] is not None else None,
         'reviews_hidden': reviews.filter(status=HIDDEN).count(),
+        'reviews_pending': reviews.filter(status=PENDING).count(),
         'reviews_this_week': reviews.filter(created_at__gte=week_ago).count(),
         'latest_reviews': list(
             reviews.select_related('booking_room__room', 'booking_room__booking__guest')

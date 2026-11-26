@@ -15,8 +15,10 @@ from .models import Booking, BookingRoom, Guest, Payment, Room, RoomType
 from .reviews import RoomReview
 from .reviews_api import ReviewWriteThrottle
 from .roles import GuestRole
+from .photos import GuestPhoto
+from .chat import ChatMessage, Conversation
 
-MODELS = [Guest, GuestRole, RoomType, Room, Booking, BookingRoom, Payment, RoomReview, LoginLock]
+MODELS = [Guest, GuestRole, GuestPhoto, Conversation, ChatMessage, RoomType, Room, Booking, BookingRoom, Payment, RoomReview, LoginLock]
 TODAY = datetime.date.today()
 
 
@@ -42,6 +44,7 @@ class ReviewApiTests(TransactionTestCase):
         self.amina = self._guest('amina@example.com', 'Amina', 'Sadykova')
         self.daniel = self._guest('daniel@example.com', 'Daniel', 'Brooks')
         self.staff = self._guest('staff@example.com', 'Timur', 'A', 'staff')
+        self.admin = self._guest('admin@example.com', 'Aliya', 'N', 'admin')
         t1 = RoomType.objects.create(type_name='Standard', capacity=2, price_per_night=60)
         t2 = RoomType.objects.create(type_name='Suite', capacity=4, price_per_night=150)
         self.r1 = Room.objects.create(room_number='101', floor=1, room_type=t1)
@@ -74,6 +77,10 @@ class ReviewApiTests(TransactionTestCase):
 
     def reviews(self, room, who=None, query=''):
         return self.api(who).get('/api/rooms/%d/reviews/%s' % (room.room_id, query))
+
+    def approve(self, rid):
+        r = self.api(self.admin).post('/api/reviews/%d/moderate/' % rid, {'status': 'Published'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
 
     # ---- reading
     def test_empty_room_has_empty_summary(self):
@@ -116,6 +123,10 @@ class ReviewApiTests(TransactionTestCase):
         self.assertEqual(r.status_code, 201, r.data)
         self.assertEqual(r.data['comment'], 'Quiet and spotless.')
         self.assertTrue(r.data['is_mine'])
+        self.assertEqual(r.data['status'], 'Pending')                # waits for an admin
+        self.assertEqual(self.reviews(self.r1).data['count'], 0)     # not on the website yet
+        self.assertEqual(self.api().get('/api/reviews/summary/').data['rooms'][str(self.r1.room_id)]['count'], 0)
+        self.approve(r.data['review_id'])
         pub = self.reviews(self.r1)                                  # a visitor
         self.assertEqual(pub.data['count'], 1)
         item = pub.data['results'][0]
@@ -199,21 +210,28 @@ class ReviewApiTests(TransactionTestCase):
     def test_edit_marks_review_as_edited(self):
         self.stay(self.amina, self.r1)
         rid = self.post(self.amina, self.r1, rating=3).data['review_id']
+        self.approve(rid)
         self.assertFalse(self.reviews(self.r1).data['results'][0]['edited'])
         RoomReview.objects.filter(pk=rid).update(created_at=datetime.datetime.now() - datetime.timedelta(days=2))
-        self.api(self.amina).patch('/api/reviews/%d/' % rid, {'comment': 'better'}, format='json')
+        r = self.api(self.amina).patch('/api/reviews/%d/' % rid, {'comment': 'better'}, format='json')
+        self.assertEqual(r.data['status'], 'Pending')                # a changed text needs approval again
+        self.assertEqual(self.reviews(self.r1).data['count'], 0)
+        self.approve(rid)
         self.assertTrue(self.reviews(self.r1).data['results'][0]['edited'])
 
     # ---- moderation
     def test_moderation_hides_review_everywhere_public(self):
         self.stay(self.amina, self.r1)
         rid = self.post(self.amina, self.r1, rating=1, comment='rude text').data['review_id']
+        self.approve(rid)
         url = '/api/reviews/%d/moderate/' % rid
         self.assertEqual(self.api().post(url, {'status': 'Hidden'}, format='json').status_code, 401)
         self.assertEqual(self.api(self.daniel).post(url, {'status': 'Hidden'}, format='json').status_code, 403)
-        self.assertEqual(self.api(self.staff).post(url, {'status': 'Nope'}, format='json').status_code, 400)
-        self.assertEqual(self.api(self.staff).post('/api/reviews/999/moderate/', {'status': 'Hidden'}, format='json').status_code, 404)
-        self.assertEqual(self.api(self.staff).post(url, {'status': 'Hidden'}, format='json').status_code, 200)
+        self.assertEqual(self.api(self.staff).post(url, {'status': 'Hidden'}, format='json').status_code, 403)  # admin only
+        self.assertEqual(self.api(self.admin).post(url, {'status': 'Nope'}, format='json').status_code, 400)
+        self.assertEqual(self.api(self.admin).post(url, {'status': 'Pending'}, format='json').status_code, 400)
+        self.assertEqual(self.api(self.admin).post('/api/reviews/999/moderate/', {'status': 'Hidden'}, format='json').status_code, 404)
+        self.assertEqual(self.api(self.admin).post(url, {'status': 'Hidden'}, format='json').status_code, 200)
 
         self.assertEqual(self.reviews(self.r1).data['count'], 0)
         self.assertEqual(self.reviews(self.r1).data['summary']['count'], 0)
@@ -226,15 +244,26 @@ class ReviewApiTests(TransactionTestCase):
         self.assertEqual(self.api(self.amina).patch('/api/reviews/%d/' % rid, {'rating': 5}, format='json').status_code, 403)
         # moderation is not an edit
         self.assertFalse(self.reviews(self.r1, self.staff, '?status=all').data['results'][0]['edited'])
-        self.api(self.staff).post(url, {'status': 'Published'}, format='json')
+        self.api(self.admin).post(url, {'status': 'Published'}, format='json')
         self.assertEqual(self.reviews(self.r1).data['count'], 1)
+
+    def test_admin_sees_pending_queue_and_can_reject(self):
+        self.stay(self.amina, self.r1)
+        rid = self.post(self.amina, self.r1, rating=2, comment='spam link').data['review_id']
+        q = self.reviews(self.r1, self.admin, '?status=Pending').data
+        self.assertEqual((q['count'], q['results'][0]['status']), (1, 'Pending'))
+        self.assertEqual(self.api(self.amina).get('/api/reviews/mine/').data['reviews'][0]['status'], 'Pending')
+        self.assertEqual(self.api(self.admin).post('/api/reviews/%d/moderate/' % rid, {'status': 'Hidden'},
+                                                   format='json').status_code, 200)
+        self.assertEqual(self.reviews(self.r1).data['count'], 0)
+        self.assertEqual(self.api(self.amina).get('/api/reviews/mine/').data['reviews'][0]['status'], 'Hidden')
 
     # ---- lists
     def test_ordering_filter_and_pagination(self):
         for i, rating in enumerate([5, 3, 1, 4, 2]):
             br = self.stay(Guest.objects.create(first_name='G%d' % i, last_name='X', email='g%d@e.com' % i, phone='1'),
                            self.r1, days_ago=10 + i)
-            RoomReview.objects.create(booking_room=br, rating=rating,
+            RoomReview.objects.create(booking_room=br, rating=rating, status='Published',
                                       created_at=datetime.datetime.now() - datetime.timedelta(hours=i))
         res = lambda q: [x['rating'] for x in self.reviews(self.r1, query=q).data['results']]
         self.assertEqual(res(''), [5, 3, 1, 4, 2])                              # newest first
@@ -254,7 +283,7 @@ class ReviewApiTests(TransactionTestCase):
     def test_summary_for_all_rooms_and_types(self):
         for guest, room, rating in ((self.amina, self.r1, 5), (self.daniel, self.r1, 4),
                                     (self.amina, self.r2, 2)):
-            RoomReview.objects.create(booking_room=self.stay(guest, room), rating=rating)
+            RoomReview.objects.create(booking_room=self.stay(guest, room), rating=rating, status='Published')
         data = self.api().get('/api/reviews/summary/').data
         self.assertEqual(data['rooms'][str(self.r1.room_id)], {'average': 4.5, 'count': 2})
         self.assertEqual(data['rooms'][str(self.r2.room_id)], {'average': 2.0, 'count': 1})
