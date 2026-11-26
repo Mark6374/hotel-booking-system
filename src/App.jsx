@@ -130,6 +130,13 @@ export default function App() {
     go('home');
   }
 
+  /* "Book" under an AI assistant answer: fill in the search and pick one room of that type. */
+  function pickFromAssistant(s) {
+    setSearch({ ci: s.check_in, co: s.check_out, guests: s.guests });
+    setSel({ [s.room_type_id]: 1 });
+    go('book');
+  }
+
   const navCurrent = view === 'checkout' || view === 'confirm' ? 'book' : view === 'forgot' || view === 'reset' ? 'login' : view;
 
   function navBtn(name, label, count) {
@@ -167,7 +174,7 @@ export default function App() {
         );
       case 'book':
         return (
-          <BookPage headingRef={h} loggedIn={!!me} search={search} setSearch={setSearch} sel={sel} setSel={setSel}
+          <BookPage key={search.ci + search.co + search.guests} headingRef={h} loggedIn={!!me} search={search} setSearch={setSearch} sel={sel} setSel={setSel}
             onContinue={() => go('checkout')} onDetails={setDetailsType} />
         );
       case 'checkout':
@@ -317,7 +324,7 @@ export default function App() {
         <RoomDetailsModal typeId={detailsType} onClose={() => setDetailsType(null)} />
       )}
 
-      {ready && data.loaded && <ChatWidget me={me} onGo={go} />}
+      {ready && data.loaded && <ChatWidget me={me} onGo={go} onPick={pickFromAssistant} />}
       <Toaster />
     </>
   );

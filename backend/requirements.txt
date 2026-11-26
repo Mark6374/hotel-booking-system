@@ -8,3 +8,5 @@ Pillow>=10.0                  # profile photos: checks and re-encodes every uplo
 channels>=4.3,<5.0            # chat WebSocket
 daphne>=4.2,<5.0              # ASGI server (python manage.py runserver uses it too)
 # channels-redis>=4.2,<5.0    # production with more than one server process: also set REDIS_URL
+groq>=0.30                   # AI assistant (booking/assistant.py) with GROQ_API_KEY (free plan)
+anthropic>=0.40              # AI assistant with ANTHROPIC_API_KEY instead (paid); only one key is needed
