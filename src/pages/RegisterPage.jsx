@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { register, passwordProblem, passwordScore, EMAIL_RE, PHONE_RE, PHONE_MESSAGE } from '../auth.js';
+import { register, passwordProblem, passwordScore, EMAIL_RE, PHONE_RE } from '../auth.js';
+import { t } from '../i18n/index.js';
 import PasswordInput from '../components/PasswordInput.jsx';
 
-const STRENGTH = ['Too weak', 'Weak', 'Okay', 'Good', 'Strong'];
+const STRENGTH = ['pw.s0', 'pw.s1', 'pw.s2', 'pw.s3', 'pw.s4'];
 const ORDER = ['first_name', 'last_name', 'email', 'phone', 'password', 'password2', 'terms'];
 
 export default function RegisterPage({ headingRef, onRegistered, onGo }) {
@@ -15,17 +16,17 @@ export default function RegisterPage({ headingRef, onRegistered, onGo }) {
 
   function validate() {
     const e = {};
-    if (!f.first_name.trim()) e.first_name = 'Enter your first name.';
-    if (!f.last_name.trim()) e.last_name = 'Enter your last name.';
-    if (!f.email.trim()) e.email = 'Enter your email.';
-    else if (!EMAIL_RE.test(f.email.trim())) e.email = 'Enter an email like name@example.com.';
-    if (!f.phone.trim()) e.phone = 'Enter your phone number.';
-    else if (!PHONE_RE.test(f.phone.trim())) e.phone = PHONE_MESSAGE;
+    if (!f.first_name.trim()) e.first_name = t('v.firstName');
+    if (!f.last_name.trim()) e.last_name = t('v.lastName');
+    if (!f.email.trim()) e.email = t('v.emailRequired');
+    else if (!EMAIL_RE.test(f.email.trim())) e.email = t('v.email');
+    if (!f.phone.trim()) e.phone = t('v.phoneRequired');
+    else if (!PHONE_RE.test(f.phone.trim())) e.phone = t('v.phone');
     const pw = passwordProblem(f.password);
     if (pw) e.password = pw;
-    if (!f.password2) e.password2 = 'Repeat your password.';
-    else if (f.password2 !== f.password) e.password2 = 'The passwords do not match.';
-    if (!f.terms) e.terms = 'Accept the terms to create an account.';
+    if (!f.password2) e.password2 = t('v.pwRepeat');
+    else if (f.password2 !== f.password) e.password2 = t('v.pwMatch');
+    if (!f.terms) e.terms = t('v.terms');
     return e;
   }
 
@@ -75,22 +76,22 @@ export default function RegisterPage({ headingRef, onRegistered, onGo }) {
     <div className="auth-layout auth-layout-single">
       <div className="auth-card auth-card-wide">
         <div className="auth-head">
-          <h1 id="register-title" tabIndex={-1} ref={headingRef}>Create an account</h1>
-          <p className="muted">It takes a minute. Your details are filled in for you at checkout.</p>
+          <h1 id="register-title" tabIndex={-1} ref={headingRef}>{t('reg.title')}</h1>
+          <p className="muted">{t('reg.lead')}</p>
         </div>
 
         <form className="auth-form" noValidate onSubmit={submit}>
           <div className="row-2">
-            {textField('first_name', 'First name', 'text', 'given-name', 50)}
-            {textField('last_name', 'Last name', 'text', 'family-name', 50)}
+            {textField('first_name', t('f.firstName'), 'text', 'given-name', 50)}
+            {textField('last_name', t('f.lastName'), 'text', 'family-name', 50)}
           </div>
           <div className="row-2">
-            {textField('email', 'Email', 'email', 'email', 100)}
-            {textField('phone', 'Phone', 'tel', 'tel', 20)}
+            {textField('email', t('f.email'), 'email', 'email', 100)}
+            {textField('phone', t('f.phone'), 'tel', 'tel', 20)}
           </div>
 
           <div className="field">
-            <label htmlFor="reg-password">Password</label>
+            <label htmlFor="reg-password">{t('f.password')}</label>
             <PasswordInput
               id="reg-password"
               autoComplete="new-password"
@@ -105,13 +106,13 @@ export default function RegisterPage({ headingRef, onRegistered, onGo }) {
               </div>
             )}
             <p className="hint" id="reg-password-hint">
-              At least 8 characters with a letter and a digit.{f.password ? ` Strength: ${STRENGTH[score]}.` : ''}
+              {t('pw.rule')}{f.password ? ' ' + t('pw.strength', { s: t(STRENGTH[score]) }) : ''}
             </p>
             <p className="field-error" id="reg-password-error">{errors.password || ''}</p>
           </div>
 
           <div className="field">
-            <label htmlFor="reg-password2">Repeat password</label>
+            <label htmlFor="reg-password2">{t('f.password2')}</label>
             <PasswordInput
               id="reg-password2"
               autoComplete="new-password"
@@ -133,7 +134,7 @@ export default function RegisterPage({ headingRef, onRegistered, onGo }) {
                 aria-invalid={errors.terms ? 'true' : undefined}
                 onChange={(e) => set('terms', e.target.checked)}
               />
-              I agree to the hotel terms and the privacy policy
+              {t('reg.terms')}
             </label>
             <p className="field-error" id="reg-terms-error">{errors.terms || ''}</p>
           </div>
@@ -141,13 +142,13 @@ export default function RegisterPage({ headingRef, onRegistered, onGo }) {
           {formError && <p className="tx-box tx-fail" role="alert">{formError}</p>}
 
           <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-            {busy ? 'Creating account…' : 'Create account'}
+            {t(busy ? 'reg.creating' : 'reg.create')}
           </button>
         </form>
 
         <p className="auth-switch">
-          Already have an account?{' '}
-          <button type="button" className="link-btn" onClick={() => onGo('login')}>Log in</button>
+          {t('reg.haveAccount')}{' '}
+          <button type="button" className="link-btn" onClick={() => onGo('login')}>{t('nav.login')}</button>
         </p>
       </div>
     </div>

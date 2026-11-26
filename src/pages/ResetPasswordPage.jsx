@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { requestPasswordReset, confirmPasswordReset, passwordProblem, EMAIL_RE } from '../auth.js';
 import PasswordInput from '../components/PasswordInput.jsx';
 import { toast } from '../toast.js';
+import { t } from '../i18n/index.js';
 
 /* Two steps of "Forgot password":
    #forgot              – enter your email, the server emails a link
@@ -17,8 +18,8 @@ function RequestForm({ headingRef, onGo }) {
   async function submit(e) {
     e.preventDefault();
     setFormError('');
-    if (!email.trim()) { setError('Enter your email.'); return; }
-    if (!EMAIL_RE.test(email.trim())) { setError('Enter an email like name@example.com.'); return; }
+    if (!email.trim()) { setError(t('v.emailRequired')); return; }
+    if (!EMAIL_RE.test(email.trim())) { setError(t('v.email')); return; }
     setError('');
     setBusy(true);
     try {
@@ -35,17 +36,17 @@ function RequestForm({ headingRef, onGo }) {
     return (
       <>
         <div className="auth-head">
-          <h1 tabIndex={-1} ref={headingRef}>Check your email</h1>
-          <p className="muted">{sent.detail}</p>
+          <h1 tabIndex={-1} ref={headingRef}>{t('reset.checkEmail')}</h1>
+          <p className="muted">{t('reset.sent')}</p>
         </div>
         {demoLink && (
           <div className="note demo-reset">
-            <p><strong>Demo mode:</strong> the project has no mail server, so the email is printed in the Django terminal. You can also open the link here:</p>
-            <p><a className="btn btn-primary btn-sm" href={demoLink}>Open reset link</a></p>
+            <p><strong>{t('reset.demo')}</strong> {t('reset.demoText')}</p>
+            <p><a className="btn btn-primary btn-sm" href={demoLink}>{t('reset.openLink')}</a></p>
           </div>
         )}
         <p className="auth-switch">
-          <button type="button" className="link-btn" onClick={() => onGo('login')}>Back to log in</button>
+          <button type="button" className="link-btn" onClick={() => onGo('login')}>{t('reset.back')}</button>
         </p>
       </>
     );
@@ -54,12 +55,12 @@ function RequestForm({ headingRef, onGo }) {
   return (
     <>
       <div className="auth-head">
-        <h1 tabIndex={-1} ref={headingRef}>Reset password</h1>
-        <p className="muted">Enter the email you signed up with. We will send you a link to choose a new password.</p>
+        <h1 tabIndex={-1} ref={headingRef}>{t('reset.title')}</h1>
+        <p className="muted">{t('reset.lead')}</p>
       </div>
       <form className="auth-form" noValidate onSubmit={submit}>
         <div className="field">
-          <label htmlFor="reset-email">Email</label>
+          <label htmlFor="reset-email">{t('f.email')}</label>
           <input type="email" id="reset-email" autoComplete="username"
             aria-describedby="reset-email-error" aria-invalid={error ? 'true' : undefined}
             value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -67,12 +68,12 @@ function RequestForm({ headingRef, onGo }) {
         </div>
         {formError && <p className="tx-box tx-fail" role="alert">{formError}</p>}
         <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-          {busy ? 'Sending…' : 'Send reset link'}
+          {t(busy ? 'reset.sending' : 'reset.send')}
         </button>
       </form>
       <p className="auth-switch">
-        Remembered it?{' '}
-        <button type="button" className="link-btn" onClick={() => onGo('login')}>Back to log in</button>
+        {t('reset.remembered')}{' '}
+        <button type="button" className="link-btn" onClick={() => onGo('login')}>{t('reset.back')}</button>
       </p>
     </>
   );
@@ -92,14 +93,14 @@ function NewPasswordForm({ headingRef, token, onGo }) {
     const errs = {};
     const p = passwordProblem(pw);
     if (p) errs.pw = p;
-    if (pw2 !== pw) errs.pw2 = 'The passwords do not match.';
+    if (pw2 !== pw) errs.pw2 = t('v.pwMatch');
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setBusy(true);
     try {
       await confirmPasswordReset(token, pw);
       setDone(true);
-      toast('Password changed. You can log in now.');
+      toast(t('reset.toast'));
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -111,10 +112,10 @@ function NewPasswordForm({ headingRef, token, onGo }) {
     return (
       <>
         <div className="auth-head">
-          <h1 tabIndex={-1} ref={headingRef}>Password changed</h1>
-          <p className="muted">You can now log in with your new password.</p>
+          <h1 tabIndex={-1} ref={headingRef}>{t('reset.done')}</h1>
+          <p className="muted">{t('reset.doneText')}</p>
         </div>
-        <button type="button" className="btn btn-primary btn-block" onClick={() => onGo('login')}>Log in</button>
+        <button type="button" className="btn btn-primary btn-block" onClick={() => onGo('login')}>{t('nav.login')}</button>
       </>
     );
   }
@@ -122,18 +123,18 @@ function NewPasswordForm({ headingRef, token, onGo }) {
   return (
     <>
       <div className="auth-head">
-        <h1 tabIndex={-1} ref={headingRef}>Choose a new password</h1>
-        <p className="muted">At least 8 characters, with a letter and a digit.</p>
+        <h1 tabIndex={-1} ref={headingRef}>{t('reset.newTitle')}</h1>
+        <p className="muted">{t('pw.rule')}</p>
       </div>
       <form className="auth-form" noValidate onSubmit={submit}>
         <div className="field">
-          <label htmlFor="new-pw">New password</label>
+          <label htmlFor="new-pw">{t('f.newPassword')}</label>
           <PasswordInput id="new-pw" autoComplete="new-password" value={pw} onChange={setPw}
             invalid={!!errors.pw} describedBy="new-pw-error" />
           <p className="field-error" id="new-pw-error">{errors.pw || ''}</p>
         </div>
         <div className="field">
-          <label htmlFor="new-pw2">Repeat new password</label>
+          <label htmlFor="new-pw2">{t('f.newPassword2')}</label>
           <PasswordInput id="new-pw2" autoComplete="new-password" value={pw2} onChange={setPw2}
             invalid={!!errors.pw2} describedBy="new-pw2-error" />
           <p className="field-error" id="new-pw2-error">{errors.pw2 || ''}</p>
@@ -141,11 +142,11 @@ function NewPasswordForm({ headingRef, token, onGo }) {
         {formError && (
           <div className="tx-box tx-fail" role="alert">
             {formError}{' '}
-            <button type="button" className="link-btn" onClick={() => onGo('forgot')}>Get a new link</button>
+            <button type="button" className="link-btn" onClick={() => onGo('forgot')}>{t('reset.newLink')}</button>
           </div>
         )}
         <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-          {busy ? 'Saving…' : 'Save new password'}
+          {t(busy ? 'common.saving' : 'reset.save')}
         </button>
       </form>
     </>

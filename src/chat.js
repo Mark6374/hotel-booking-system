@@ -8,6 +8,7 @@
    Admin:    state.inbox lists the conversations; state.threads[id] holds an opened one. */
 
 import { api } from './api.js';
+import { t } from './i18n/index.js';
 
 const RETRY_MAX_MS = 30000;
 let ws = null;
@@ -197,7 +198,7 @@ function onRead(ev) {
 }
 
 function markFailed(clientId, detail) {
-  const fail = (list) => list.map((m) => (m.client_id === clientId ? { ...m, pending: false, failed: detail || 'Not sent.' } : m));
+  const fail = (list) => list.map((m) => (m.client_id === clientId ? { ...m, pending: false, failed: detail || t('chat.failed') } : m));
   if (state.role === 'admin') {
     Object.keys(state.threads).forEach((id) => setThread(Number(id), { messages: fail(state.threads[id].messages) }));
   } else {
@@ -264,15 +265,15 @@ export async function openThread(id) {
 }
 
 export async function loadThreadOlder(id) {
-  const t = state.threads[id];
-  if (!t || !t.nextBefore) return;
-  const r = await api('/chat/admin/conversations/' + id + '/messages/?before=' + t.nextBefore);
-  setThread(id, { messages: r.results.concat(t.messages), hasMore: r.has_more, nextBefore: r.next_before });
+  const th = state.threads[id];
+  if (!th || !th.nextBefore) return;
+  const r = await api('/chat/admin/conversations/' + id + '/messages/?before=' + th.nextBefore);
+  setThread(id, { messages: r.results.concat(th.messages), hasMore: r.has_more, nextBefore: r.next_before });
 }
 
 async function catchUpThread(id) {
-  const t = state.threads[id];
-  if (!t || !t.loaded) return;
+  const th = state.threads[id];
+  if (!th || !th.loaded) return;
   try {
     const r = await api('/chat/admin/conversations/' + id + '/messages/?after=' + lastId(t.messages));
     let list = state.threads[id].messages;
@@ -285,8 +286,8 @@ export async function sendAdminReply(id, body) {
   const text = body.trim();
   if (!text) return;
   const client_id = 'a' + Date.now() + '-' + (++localId);
-  const t = state.threads[id];
-  setThread(id, { messages: (t ? t.messages : []).concat({ client_id, body: text, from_customer: false, pending: true, created_at: new Date().toISOString() }) });
+  const th = state.threads[id];
+  setThread(id, { messages: (th ? th.messages : []).concat({ client_id, body: text, from_customer: false, pending: true, created_at: new Date().toISOString() }) });
   if (sendFrame({ type: 'message.send', conversation_id: id, body: text, client_id })) return;
   try {
     const msg = await api('/chat/admin/conversations/' + id + '/messages/', { method: 'POST', body: { body: text, client_id } });

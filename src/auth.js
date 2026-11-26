@@ -7,6 +7,7 @@
      admin – everything staff can do, plus users, prices and raw data */
 
 import { api, getToken, setToken } from './api.js';
+import { t } from './i18n/index.js';
 import { reloadDb } from './db.js';
 
 export const ROLES = ['guest', 'staff', 'admin'];
@@ -19,8 +20,8 @@ export const PHONE_MESSAGE = 'Enter at least 6 digits. Spaces, ( ) - and a + at 
 
 /* Same rule as the backend (min 8, not only digits), plus a letter and a digit. */
 export function passwordProblem(pw) {
-  if (pw.length < 8) return 'Use at least 8 characters.';
-  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return 'Use at least one letter and one digit.';
+  if (pw.length < 8) return t('v.pwLength');
+  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return t('v.pwMix');
   return '';
 }
 

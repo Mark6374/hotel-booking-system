@@ -1,22 +1,7 @@
 import { getDb, bookingDetails, fmtDate, money, ref } from '../db.js';
+import { t } from '../i18n/index.js';
 import StatusBadge from '../components/StatusBadge.jsx';
-
-function RenderLog({ log }) {
-  return (
-    <ol className="txlog">
-      {log.map((i, idx) => (
-        <li className={(i.ok ? 'ok' : 'fail') + (i.final ? ' final' : '')} key={idx}>
-          <span className="mark" aria-hidden="true">{i.ok ? '✓' : '✗'}</span>
-          <span>
-            <span className="sr">{i.ok ? 'Done: ' : 'Failed: '}</span>
-            {i.label}
-            {i.detail ? <small>{i.detail}</small> : null}
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
-}
+import { RenderLog } from './CheckoutPage.jsx';
 
 export default function ConfirmPage({ headingRef, result, email, onViewMine, onBookAgain }) {
   const db = getDb();
@@ -27,24 +12,24 @@ export default function ConfirmPage({ headingRef, result, email, onViewMine, onB
   return (
     <>
       <div className="page-head">
-        <h1 id="confirm-title" tabIndex={-1} ref={headingRef}>Booking confirmed</h1>
+        <h1 id="confirm-title" tabIndex={-1} ref={headingRef}>{t('confirm.title')}</h1>
       </div>
       <div id="confirm-body">
         <div className="confirm-card">
           <div className="booking-head"><span className="ref">{ref(b.booking_id)}</span><StatusBadge status={b.status} /></div>
           <div className="booking-meta">
-            <span>Guest <strong>{g.first_name} {g.last_name}</strong></span>
-            <span>Dates <strong>{fmtDate(b.check_in)} to {fmtDate(b.check_out)}</strong></span>
-            <span>Rooms <strong>{d.rooms.join(', ')}</strong></span>
-            <span>Total paid <strong>{money(d.total)}</strong> by {d.pay ? d.pay.payment_method.toLowerCase() : ''}</span>
+            <span>{t('confirm.guest')} <strong>{g.first_name} {g.last_name}</strong></span>
+            <span>{t('bk.dates')} <strong>{t('bk.range', { from: fmtDate(b.check_in), to: fmtDate(b.check_out) })}</strong></span>
+            <span>{t('bk.rooms')} <strong>{d.rooms.join(', ')}</strong></span>
+            <span>{t('confirm.paid')} <strong>{money(d.total)}</strong> · {d.pay ? t('method.' + d.pay.payment_method) : ''}</span>
           </div>
-          <p className="muted">A confirmation would be sent to {email}.</p>
-          <div className="tx-box tx-ok"><h3>What the database did</h3><RenderLog log={result.log} /></div>
+          <p className="muted">{t('confirm.emailNote', { email })}</p>
+          <div className="tx-box tx-ok"><h3>{t('confirm.dbDid')}</h3><RenderLog log={result.log} /></div>
         </div>
       </div>
       <div className="actions">
-        <button type="button" className="btn btn-primary" onClick={onViewMine}>Go to my bookings</button>
-        <button type="button" className="btn btn-ghost" onClick={onBookAgain}>Book another stay</button>
+        <button type="button" className="btn btn-primary" onClick={onViewMine}>{t('confirm.toMine')}</button>
+        <button type="button" className="btn btn-ghost" onClick={onBookAgain}>{t('confirm.again')}</button>
       </div>
     </>
   );

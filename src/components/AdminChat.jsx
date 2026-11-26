@@ -2,13 +2,10 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { subscribeChat, getChat, loadInbox, openThread, loadThreadOlder, sendAdminReply, markThreadRead } from '../chat.js';
 import { ChatThread, ChatComposer } from './ChatMessages.jsx';
 import Avatar from './Avatar.jsx';
+import { t } from '../i18n/index.js';
+import { inboxTime } from '../i18n/dates.js';
 
-function when(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const sameDay = d.toDateString() === new Date().toDateString();
-  return new Intl.DateTimeFormat('en-GB', sameDay ? { hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short' }).format(d);
-}
+function when(iso) { return iso ? inboxTime(iso) : ''; }
 
 /* Admin inbox: every customer conversation, newest activity first; any admin can reply. */
 export default function AdminChat() {
@@ -19,8 +16,8 @@ export default function AdminChat() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const t = setTimeout(() => loadInbox({ q: query, unread: onlyUnread }).catch((e) => setError(e.message)), 250);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => loadInbox({ q: query, unread: onlyUnread }).catch((e) => setError(e.message)), 250);
+    return () => clearTimeout(timer);
   }, [query, onlyUnread]);
 
   useEffect(() => {
@@ -37,10 +34,10 @@ export default function AdminChat() {
   return (
     <>
       <p className="lead">
-        Messages from guests in real time.{' '}
+        {t('chat.adminLead')}{' '}
         <span className={'chat-status-inline ' + (chat.status === 'online' ? 'on' : 'off')}>
           <span className={'dot ' + (chat.status === 'online' ? 'on' : 'off')} aria-hidden="true"></span>
-          {chat.status === 'online' ? 'Connected' : 'Connecting…'}
+          {t(chat.status === 'online' ? 'chat.connected' : 'chat.connecting')}
         </span>
       </p>
       {error && <p className="tx-box tx-fail" role="alert">{error}</p>}
@@ -48,12 +45,12 @@ export default function AdminChat() {
       <div className={'inbox' + (selected ? ' has-thread' : '')}>
         <div className="inbox-list">
           <div className="inbox-tools">
-            <label className="sr" htmlFor="inbox-q">Search conversations</label>
-            <input type="text" id="inbox-q" placeholder="Search by name or email" value={query} onChange={(e) => setQuery(e.target.value)} />
-            <button type="button" className="chip" aria-pressed={onlyUnread} onClick={() => setOnlyUnread(!onlyUnread)}>Unread</button>
+            <label className="sr" htmlFor="inbox-q">{t('chat.searchLabel')}</label>
+            <input type="text" id="inbox-q" placeholder={t('admin.searchPh')} value={query} onChange={(e) => setQuery(e.target.value)} />
+            <button type="button" className="chip" aria-pressed={onlyUnread} onClick={() => setOnlyUnread(!onlyUnread)}>{t('chat.unread')}</button>
           </div>
-          {!chat.inboxLoaded ? <p className="muted inbox-empty">Loading…</p> : !chat.inbox.length ? (
-            <p className="muted inbox-empty">{query || onlyUnread ? 'No conversations match.' : 'No messages from guests yet.'}</p>
+          {!chat.inboxLoaded ? <p className="muted inbox-empty">{t('common.loading')}</p> : !chat.inbox.length ? (
+            <p className="muted inbox-empty">{t(query || onlyUnread ? 'chat.noMatch' : 'chat.noInbox')}</p>
           ) : (
             <ul>
               {chat.inbox.map((c) => {
@@ -69,10 +66,10 @@ export default function AdminChat() {
                           <small className="muted">{when(c.last_message_at)}</small>
                         </span>
                         <span className="inbox-preview muted">
-                          {c.last_message && !c.last_message.from_customer ? 'You: ' : ''}{c.last_message ? c.last_message.preview : ''}
+                          {c.last_message && !c.last_message.from_customer ? t('chat.you') + ' ' : ''}{c.last_message ? c.last_message.preview : ''}
                         </span>
                       </span>
-                      {n > 0 && <span className="chat-badge static" aria-label={`${n} unread`}>{n}</span>}
+                      {n > 0 && <span className="chat-badge static" aria-label={t('chat.nUnread', { n })}>{n}</span>}
                     </button>
                   </li>
                 );
@@ -83,11 +80,11 @@ export default function AdminChat() {
 
         <div className="inbox-thread">
           {!selected ? (
-            <p className="muted inbox-empty">Choose a conversation on the left.</p>
+            <p className="muted inbox-empty">{t('chat.choose')}</p>
           ) : (
             <>
               <div className="inbox-thread-head">
-                <button type="button" className="link-btn inbox-back" onClick={() => setSelected(0)}>&larr; All conversations</button>
+                <button type="button" className="link-btn inbox-back" onClick={() => setSelected(0)}>&larr; {t('chat.all')}</button>
                 {guest && (
                   <div className="inbox-guest">
                     <Avatar person={guest} size="sm" />
@@ -101,10 +98,10 @@ export default function AdminChat() {
                 seenUpTo={thread ? thread.seenUpTo : 0}
                 hasMore={thread ? thread.hasMore : false}
                 onOlder={() => loadThreadOlder(selected)}
-                label={guest ? `Messages with ${guest.first_name} ${guest.last_name}` : 'Messages'}
-                emptyText={thread && thread.loaded ? 'No messages yet.' : 'Loading…'}
+                label={guest ? t('chat.with', { name: guest.first_name + ' ' + guest.last_name }) : t('chat.messages')}
+                emptyText={t(thread && thread.loaded ? 'chat.noMessages' : 'common.loading')}
               />
-              <ChatComposer key={selected} onSend={(text) => sendAdminReply(selected, text)} placeholder="Reply to the guest…" autoFocus />
+              <ChatComposer key={selected} onSend={(text) => sendAdminReply(selected, text)} placeholder={t('chat.replyPh')} autoFocus />
             </>
           )}
         </div>

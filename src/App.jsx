@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useDb } from './hooks/useDb.js';
 import { useAuth } from './hooks/useAuth.js';
 import { todayISO, addDays, reloadDb, ref } from './db.js';
 import { loadReviewSummary } from './reviews.js';
 import { currentTheme, toggleTheme, subscribeTheme } from './theme.js';
 import { toast } from './toast.js';
-import { logout, canOpen, homeFor, restoreSession, ACCESS, ROLE_LABEL } from './auth.js';
+import { logout, canOpen, homeFor, restoreSession, ACCESS } from './auth.js';
 import HomePage from './pages/HomePage.jsx';
 import BookPage from './pages/BookPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
@@ -23,16 +23,13 @@ import Toaster from './components/Toaster.jsx';
 import ChatWidget from './components/ChatWidget.jsx';
 import Avatar from './components/Avatar.jsx';
 import { startChat, stopChat, subscribeChat, getChat } from './chat.js';
+import { t, getLang, subscribeLang } from './i18n/index.js';
+import LangSwitch from './components/LangSwitch.jsx';
 
 const VIEWS = ['home', 'book', 'checkout', 'confirm', 'about', 'login', 'register', 'forgot', 'reset', 'account', 'staff', 'admin'];
 
-const NOTICE = {
-  checkout: 'Log in or create an account to finish your booking. Your rooms are kept.',
-  confirm: 'Log in to see this booking.',
-  account: 'Log in to see your bookings and profile.',
-  staff: 'The front desk is for hotel staff. Log in with a staff account.',
-  admin: 'The admin panel is for administrators. Log in with an admin account.'
-};
+/* Shown above the login form when a protected page is opened without a session. */
+const NOTICE = { checkout: 'notice.checkout', confirm: 'notice.confirm', account: 'notice.account', staff: 'notice.staff', admin: 'notice.admin' };
 
 function readHash() {
   const h = location.hash.replace('#', '').split('?')[0];
@@ -65,6 +62,10 @@ export default function App() {
   const [returnTo, setReturnTo] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const theme = useSyncExternalStore(subscribeTheme, currentTheme);
+  const lang = useSyncExternalStore(subscribeLang, getLang); // re-render the whole site when the language changes
+  const [compact, setCompact] = useState(false);              // header menu folded into the Menu button
+  const headerInner = useRef(null);
+  const needWidth = useRef(0);
 
   const mainH1 = useRef(null);
 
@@ -116,7 +117,7 @@ export default function App() {
   }, [view, needsLogin, forbidden]);
 
   function afterAuth(account, isNew) {
-    toast(isNew ? `Welcome, ${account.first_name}! Your account is ready.` : `Welcome back, ${account.first_name}.`);
+    toast(t(isNew ? 'toast.welcomeNew' : 'toast.welcomeBack', { name: account.first_name }));
     const target = returnTo && canOpen(returnTo, account) ? returnTo : homeFor(account);
     setReturnTo('');
     go(target);
@@ -124,7 +125,7 @@ export default function App() {
 
   function doLogout() {
     logout();
-    toast('You are logged out.', 'info');
+    toast(t('toast.loggedOut'), 'info');
     setReturnTo('');
     go('home');
   }
@@ -135,7 +136,7 @@ export default function App() {
     return (
       <button type="button" className="nav-btn" aria-current={navCurrent === name ? 'page' : undefined} onClick={() => go(name)}>
         {label}
-        {count > 0 && <span className="chat-badge static" aria-label={`${count} unread chat messages`}>{count}</span>}
+        {count > 0 && <span className="chat-badge static" aria-label={t('nav.unreadChat', { n: count })}>{count}</span>}
       </button>
     );
   }
@@ -143,19 +144,19 @@ export default function App() {
   function renderView() {
     const h = mainH1;
     if (checking || (!data.loaded && !data.error)) {
-      return <div className="gate"><h1 tabIndex={-1} ref={h}>Loading…</h1></div>;
+      return <div className="gate"><h1 tabIndex={-1} ref={h}>{t('common.loading')}</h1></div>;
     }
     if (!data.loaded) {
       return (
         <div className="gate">
-          <h1 tabIndex={-1} ref={h}>The hotel server is not responding</h1>
+          <h1 tabIndex={-1} ref={h}>{t('gate.serverDown')}</h1>
           <p className="lead">{data.error}</p>
-          <p className="muted">Start it with <code>cd backend && python3 manage.py runserver</code>, then try again.</p>
-          <div className="actions"><button type="button" className="btn btn-primary" onClick={() => reloadDb()}>Try again</button></div>
+          <p className="muted">{t('gate.startIt')} <code>cd backend && python3 manage.py runserver</code></p>
+          <div className="actions"><button type="button" className="btn btn-primary" onClick={() => reloadDb()}>{t('common.tryAgain')}</button></div>
         </div>
       );
     }
-    if (needsLogin) return <LoginPage key="guard-login" headingRef={h} notice={NOTICE[view]} onLoggedIn={afterAuth} onGo={go} />;
+    if (needsLogin) return <LoginPage key="guard-login" headingRef={h} notice={t(NOTICE[view])} onLoggedIn={afterAuth} onGo={go} />;
     if (forbidden) return <Forbidden headingRef={h} me={me} needed={ACCESS[view]} onHome={() => go(homeFor(me))} onLogout={doLogout} />;
 
     switch (view) {
@@ -173,9 +174,9 @@ export default function App() {
         if (!Object.values(sel).some(Boolean)) {
           return (
             <div className="gate">
-              <h1 tabIndex={-1} ref={h}>No rooms selected</h1>
-              <p className="lead">Pick at least one room before checking out.</p>
-              <div className="actions"><button type="button" className="btn btn-primary" onClick={() => go('book')}>Choose rooms</button></div>
+              <h1 tabIndex={-1} ref={h}>{t('gate.noRooms')}</h1>
+              <p className="lead">{t('gate.noRoomsText')}</p>
+              <div className="actions"><button type="button" className="btn btn-primary" onClick={() => go('book')}>{t('gate.chooseRooms')}</button></div>
             </div>
           );
         }
@@ -184,7 +185,7 @@ export default function App() {
             onPaid={(result, email) => {
               setConfirmResult({ result, email });
               setSel({});
-              toast(`Booking ${ref(result.bookingId)} confirmed. Your room is reserved.`);
+              toast(t('toast.booked', { ref: ref(result.bookingId) }));
               go('confirm');
             }} />
         );
@@ -192,9 +193,9 @@ export default function App() {
         if (!confirmResult) {
           return (
             <div className="gate">
-              <h1 tabIndex={-1} ref={h}>Nothing to confirm</h1>
-              <p className="lead">Your bookings are listed in your account.</p>
-              <div className="actions"><button type="button" className="btn btn-primary" onClick={() => go('account')}>My bookings</button></div>
+              <h1 tabIndex={-1} ref={h}>{t('gate.nothingToConfirm')}</h1>
+              <p className="lead">{t('gate.nothingText')}</p>
+              <div className="actions"><button type="button" className="btn btn-primary" onClick={() => go('account')}>{t('acc.tab.bookings')}</button></div>
             </div>
           );
         }
@@ -225,35 +226,57 @@ export default function App() {
   const isStaff = me && (me.role === 'staff' || me.role === 'admin');
   const isAdmin = me && me.role === 'admin';
 
+  /* Fold the header menu into the Menu button when it does not fit on one line (longer Russian /
+     Kazakh labels, the staff and admin menus). Measured before the browser paints, so nothing jumps. */
+  const headerKey = lang + '|' + (me ? me.role + me.first_name : '-') + '|' + chat.unreadTotal;
+  useLayoutEffect(() => { needWidth.current = 0; setCompact(false); }, [headerKey]);
+  useLayoutEffect(() => {
+    const el = headerInner.current;
+    if (!compact && el && el.scrollWidth > el.clientWidth + 1) {
+      needWidth.current = el.scrollWidth;
+      setCompact(true);
+    }
+  });
+  useEffect(() => {
+    function onResize() {
+      const el = headerInner.current;
+      if (compact && el && needWidth.current && el.clientWidth >= needWidth.current) setCompact(false);
+      if (!compact && el && el.scrollWidth > el.clientWidth + 1) { needWidth.current = el.scrollWidth; setCompact(true); }
+    }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [compact]);
+
   return (
     <>
-      <header className={'site-header' + (isStaff ? ' site-header-staff' : '')}>
-        <div className="header-inner">
+      <header className={'site-header' + (isStaff ? ' site-header-staff' : '') + (compact ? ' compact' : '')}>
+        <div className="header-inner" ref={headerInner}>
           <a className="brand" href="#home" onClick={(e) => { e.preventDefault(); go('home'); }}>
             Juniper Court
-            {isStaff && <span className="brand-tag">{isAdmin ? 'Admin' : 'Staff'}</span>}
+            {isStaff && <span className="brand-tag">{t(isAdmin ? 'nav.tagAdmin' : 'nav.tagStaff')}</span>}
           </a>
 
           <button type="button" className="menu-toggle" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen(!menuOpen)}>
-            Menu
+            {t('nav.menu')}
           </button>
 
-          <nav id="main-nav" aria-label="Main" className={menuOpen ? 'open' : ''}>
+          <nav id="main-nav" aria-label={t('nav.main')} className={menuOpen ? 'open' : ''}>
             <div className="nav-group">
-              {navBtn('home', 'Home')}
-              {navBtn('book', 'Book a room')}
-              {navBtn('about', 'About')}
-              {me && navBtn('account', 'My account')}
-              {isStaff && navBtn('staff', 'Front desk')}
-              {isAdmin && navBtn('admin', 'Admin', chat.unreadTotal)}
+              {navBtn('home', t('nav.home'))}
+              {navBtn('book', t('nav.book'))}
+              {navBtn('about', t('nav.about'))}
+              {me && navBtn('account', t('nav.account'))}
+              {isStaff && navBtn('staff', t('nav.staff'))}
+              {isAdmin && navBtn('admin', t('nav.admin'), chat.unreadTotal)}
             </div>
 
             <div className="nav-group nav-user">
+              <LangSwitch />
               <button type="button" className="theme-btn" onClick={toggleTheme}
-                aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
+                aria-label={t(theme === 'dark' ? 'theme.toLight' : 'theme.toDark')}
+                title={t(theme === 'dark' ? 'theme.toLight' : 'theme.toDark')}>
                 <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
-                <span className="theme-btn-text" aria-hidden="true">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+                <span className="theme-btn-text" aria-hidden="true">{t(theme === 'dark' ? 'theme.light' : 'theme.dark')}</span>
               </button>
               {me ? (
                 <>
@@ -261,15 +284,15 @@ export default function App() {
                     <Avatar person={me} size="sm" />
                     <span className="user-pill-text">
                       {me.first_name}
-                      <small>{ROLE_LABEL[me.role]}</small>
+                      <small>{t('role.' + me.role)}</small>
                     </span>
                   </span>
-                  <button type="button" className="btn btn-sm btn-ghost" onClick={doLogout}>Log out</button>
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={doLogout}>{t('nav.logout')}</button>
                 </>
               ) : (
                 <>
-                  {navBtn('login', 'Log in')}
-                  <button type="button" className="btn btn-sm btn-primary" onClick={() => go('register')}>Sign up</button>
+                  {navBtn('login', t('nav.login'))}
+                  <button type="button" className="btn btn-sm btn-primary" onClick={() => go('register')}>{t('nav.signup')}</button>
                 </>
               )}
             </div>
@@ -278,7 +301,7 @@ export default function App() {
       </header>
 
       {data.loaded && data.error && (
-        <p className="net-banner" role="alert">Lost connection to the server: {data.error} <button type="button" className="link-btn" onClick={() => reloadDb()}>Retry</button></p>
+        <p className="net-banner" role="alert">{t('net.lost')} {data.error} <button type="button" className="link-btn" onClick={() => reloadDb()}>{t('net.retry')}</button></p>
       )}
 
       <main id="main" className={view === 'home' && !needsLogin ? 'main-home' : ''}>
@@ -286,8 +309,8 @@ export default function App() {
       </main>
 
       <footer className="site-footer">
-        <p>Juniper Court Hotel · 14 Juniper Court, Almaty</p>
-        <p>Prototype for the Task 9 database design. Data comes from the Django + MySQL backend.</p>
+        <p>{t('footer.address')}</p>
+        <p>{t('footer.note')}</p>
       </footer>
 
       {detailsType != null && (

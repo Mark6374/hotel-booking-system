@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { addDays, todayISO, blockedRoomIds, fmtDate, plural } from '../db.js';
+import { addDays, todayISO, blockedRoomIds, fmtDate, typeName as roomTypeName } from '../db.js';
+import { t, tn } from '../i18n/index.js';
+import { monthYear, dayLong, weekdaysShort } from '../i18n/dates.js';
 
 /* Occupancy calendar: for every night of a month, how many rooms are free.
    A night D is taken by an active booking when check_in <= D < check_out
    (the same rule as the booking page). Rooms closed for maintenance count as not free.
    First click = check-in, second click = check-out; then the search runs. */
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function monthStart(iso) { return iso.slice(0, 8) + '01'; }
 
@@ -16,15 +17,9 @@ function shiftMonth(first, delta) {
   return d.toISOString().slice(0, 10);
 }
 
-function monthLabel(first) {
-  return new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-    .format(new Date(first + 'T00:00:00Z'));
-}
+function monthLabel(first) { return monthYear(first); }
 
-function longDay(iso) {
-  return new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
-    .format(new Date(iso + 'T00:00:00Z'));
-}
+function longDay(iso) { return dayLong(iso); }
 
 /* Monday-first grid of the month: leading blanks (null) + ISO days. */
 function monthDays(first) {
@@ -71,38 +66,38 @@ export default function AvailabilityCalendar({ db, search, onPick }) {
   }
 
   const inSearch = (iso) => !start && search.ci && search.co && iso >= search.ci && iso < search.co;
-  const typeName = typeId ? db.room_type.find((t) => t.room_type_id === typeId)?.type_name : 'all';
+  const typeLabel = typeId ? roomTypeName(db.room_type.find((x) => x.room_type_id === typeId)) : t('cal.allRooms');
 
   return (
     <section className="cal" aria-labelledby="cal-title">
       <div className="cal-head">
         <div>
-          <h2 id="cal-title">Availability calendar</h2>
+          <h2 id="cal-title">{t('cal.title')}</h2>
           <p className="muted">
             {start
-              ? <>Check-in <strong>{fmtDate(start)}</strong>. Now pick your check-out day.</>
-              : 'How many rooms are free each night. Pick a check-in day, then a check-out day.'}
+              ? <>{t('search.checkIn')}: <strong>{fmtDate(start)}</strong>. {t('cal.pickOut')}</>
+              : t('cal.lead')}
           </p>
         </div>
-        <div className="chips" role="group" aria-label="Room type">
-          <button type="button" className="chip" aria-pressed={typeId === 0} onClick={() => setTypeId(0)}>All rooms</button>
-          {db.room_type.map((t) => (
-            <button key={t.room_type_id} type="button" className="chip" aria-pressed={typeId === t.room_type_id}
-              onClick={() => setTypeId(t.room_type_id)}>{t.type_name}</button>
+        <div className="chips" role="group" aria-label={t('cal.roomType')}>
+          <button type="button" className="chip" aria-pressed={typeId === 0} onClick={() => setTypeId(0)}>{t('cal.allRooms')}</button>
+          {db.room_type.map((rt) => (
+            <button key={rt.room_type_id} type="button" className="chip" aria-pressed={typeId === rt.room_type_id}
+              onClick={() => setTypeId(rt.room_type_id)}>{roomTypeName(rt)}</button>
           ))}
         </div>
       </div>
 
       <div className="cal-nav">
         <button type="button" className="btn btn-sm btn-ghost" disabled={month <= firstAllowed}
-          onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">&larr;</button>
+          onClick={() => setMonth(shiftMonth(month, -1))} aria-label={t('cal.prev')}>&larr;</button>
         <strong aria-live="polite">{monthLabel(month)}</strong>
         <button type="button" className="btn btn-sm btn-ghost" disabled={month >= lastAllowed}
-          onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">&rarr;</button>
+          onClick={() => setMonth(shiftMonth(month, 1))} aria-label={t('cal.next')}>&rarr;</button>
       </div>
 
-      <div className="cal-grid" role="group" aria-label={`Free ${typeName === 'all' ? '' : typeName + ' '}rooms in ${monthLabel(month)}`}>
-        {WEEKDAYS.map((w) => <div key={w} className="cal-wd" aria-hidden="true">{w}</div>)}
+      <div className="cal-grid" role="group" aria-label={t('cal.gridLabel', { type: typeLabel, month: monthLabel(month) })}>
+        {weekdaysShort().map((w) => <div key={w} className="cal-wd" aria-hidden="true">{w}</div>)}
         {days.map((d, i) => {
           if (!d) return <div key={'b' + i} className="cal-blank" aria-hidden="true"></div>;
           const past = d.iso < today;
@@ -110,25 +105,25 @@ export default function AvailabilityCalendar({ db, search, onPick }) {
           if (d.iso === today) cls.push('today');
           if (d.iso === start) cls.push('start');
           if (inSearch(d.iso)) cls.push('in-range');
-          const label = `${longDay(d.iso)}: ${past ? 'past' : `${d.free} of ${plural(total, 'room', 'rooms')} free`}`;
+          const label = longDay(d.iso) + ': ' + (past ? t('cal.past') : t('cal.dayFree', { free: d.free, rooms: tn('n.rooms', total) }));
           return (
             <button key={d.iso} type="button" className={cls.join(' ')} disabled={past}
               aria-label={label} aria-pressed={d.iso === start || inSearch(d.iso)} onClick={() => pick(d.iso)}>
               <span className="cal-num">{Number(d.iso.slice(8))}</span>
-              {!past && <span className="cal-free">{d.free}<span className="cal-free-word"> free</span></span>}
+              {!past && <span className="cal-free">{d.free}<span className="cal-free-word"> {t('cal.freeWord')}</span></span>}
             </button>
           );
         })}
       </div>
 
-      <ul className="cal-legend" aria-label="Legend">
-        <li><span className="cal-swatch lvl-high"></span>Plenty free</li>
-        <li><span className="cal-swatch lvl-mid"></span>Some free</li>
-        <li><span className="cal-swatch lvl-low"></span>Almost full</li>
-        <li><span className="cal-swatch lvl-full"></span>Full</li>
-        <li><span className="cal-swatch in-range"></span>Your dates</li>
+      <ul className="cal-legend" aria-label={t('common.legend')}>
+        <li><span className="cal-swatch lvl-high"></span>{t('cal.high')}</li>
+        <li><span className="cal-swatch lvl-mid"></span>{t('cal.mid')}</li>
+        <li><span className="cal-swatch lvl-low"></span>{t('cal.low')}</li>
+        <li><span className="cal-swatch lvl-full"></span>{t('cal.full')}</li>
+        <li><span className="cal-swatch in-range"></span>{t('cal.yours')}</li>
       </ul>
-      {start && <button type="button" className="link-btn" onClick={() => setStart('')}>Cancel date choice</button>}
+      {start && <button type="button" className="link-btn" onClick={() => setStart('')}>{t('cal.cancel')}</button>}
     </section>
   );
 }

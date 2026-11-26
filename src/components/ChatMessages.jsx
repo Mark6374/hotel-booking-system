@@ -1,13 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
 import { isSeen } from '../chat.js';
+import { t } from '../i18n/index.js';
+import { chatTime } from '../i18n/dates.js';
 
-function time(iso) {
-  const d = new Date(iso);
-  const today = new Date();
-  const sameDay = d.toDateString() === today.toDateString();
-  return new Intl.DateTimeFormat('en-GB', sameDay ? { hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(d);
-}
+const time = (iso) => chatTime(iso);
 
 /* Message list + composer, used by the customer widget and the admin inbox.
    mine(msg) decides which side a message is on. Text is shown as text, never as HTML. */
@@ -37,7 +34,7 @@ export function ChatThread({ messages, mine, seenUpTo, hasMore, onOlder, emptyTe
   return (
     <div className="chat-thread" ref={box} role="log" aria-live="polite" aria-label={label}
       onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; }}>
-      {hasMore && <button type="button" className="link-btn chat-older" onClick={older}>Load earlier messages</button>}
+      {hasMore && <button type="button" className="link-btn chat-older" onClick={older}>{t('chat.older')}</button>}
       {!messages.length && <p className="muted chat-empty">{emptyText}</p>}
       {messages.map((m) => {
         const own = mine(m);
@@ -48,8 +45,8 @@ export function ChatThread({ messages, mine, seenUpTo, hasMore, onOlder, emptyTe
               {!own && <span className="chat-name">{m.sender_name}</span>}
               <div className={'chat-bubble' + (m.failed ? ' failed' : '')}>{m.body}</div>
               <span className="chat-meta">
-                {m.pending ? 'Sending…' : m.failed ? 'Not sent: ' + m.failed : time(m.created_at)}
-                {own && lastMine && m.message_id === lastMine.message_id && isSeen(m, seenUpTo) ? ' · Seen' : ''}
+                {m.pending ? t('chat.sending') : m.failed ? t('chat.notSent', { why: m.failed }) : time(m.created_at)}
+                {own && lastMine && m.message_id === lastMine.message_id && isSeen(m, seenUpTo) ? ' · ' + t('chat.seen') : ''}
               </span>
             </div>
           </div>
@@ -73,11 +70,11 @@ export function ChatComposer({ onSend, disabled, placeholder, autoFocus }) {
 
   return (
     <form className="chat-composer" onSubmit={send}>
-      <label className="sr" htmlFor="chat-input">Message</label>
-      <textarea id="chat-input" ref={ref} rows={1} maxLength={2000} value={text} placeholder={placeholder || 'Write a message…'}
+      <label className="sr" htmlFor="chat-input">{t('chat.message')}</label>
+      <textarea id="chat-input" ref={ref} rows={1} maxLength={2000} value={text} placeholder={placeholder || t('chat.writePh')}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) send(e); }} />
-      <button type="submit" className="btn btn-primary btn-sm" disabled={disabled || !text.trim()}>Send</button>
+      <button type="submit" className="btn btn-primary btn-sm" disabled={disabled || !text.trim()}>{t('chat.send')}</button>
     </form>
   );
 }

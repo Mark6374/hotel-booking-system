@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { login, DEMO_ACCOUNTS, ROLE_LABEL, EMAIL_RE } from '../auth.js';
+import { login, DEMO_ACCOUNTS, EMAIL_RE } from '../auth.js';
+import { t } from '../i18n/index.js';
 import PasswordInput from '../components/PasswordInput.jsx';
 
 export default function LoginPage({ headingRef, notice, onLoggedIn, onGo }) {
@@ -14,9 +15,9 @@ export default function LoginPage({ headingRef, notice, onLoggedIn, onGo }) {
     e.preventDefault();
     setFormError('');
     const errs = {};
-    if (!email.trim()) errs.email = 'Enter your email.';
-    else if (!EMAIL_RE.test(email.trim())) errs.email = 'Enter an email like name@example.com.';
-    if (!password) errs.password = 'Enter your password.';
+    if (!email.trim()) errs.email = t('v.emailRequired');
+    else if (!EMAIL_RE.test(email.trim())) errs.email = t('v.email');
+    if (!password) errs.password = t('v.password');
     setErrors(errs);
     if (Object.keys(errs).length) {
       document.getElementById(errs.email ? 'login-email' : 'login-password')?.focus();
@@ -45,15 +46,15 @@ export default function LoginPage({ headingRef, notice, onLoggedIn, onGo }) {
     <div className="auth-layout">
       <div className="auth-card">
         <div className="auth-head">
-          <h1 id="login-title" tabIndex={-1} ref={headingRef}>Log in</h1>
-          <p className="muted">Welcome back to Juniper Court.</p>
+          <h1 id="login-title" tabIndex={-1} ref={headingRef}>{t('login.title')}</h1>
+          <p className="muted">{t('login.lead')}</p>
         </div>
 
         {notice && <p className="note" role="status">{notice}</p>}
 
         <form className="auth-form" noValidate onSubmit={submit}>
           <div className="field">
-            <label htmlFor="login-email">Email</label>
+            <label htmlFor="login-email">{t('f.email')}</label>
             <input
               type="email"
               id="login-email"
@@ -68,8 +69,8 @@ export default function LoginPage({ headingRef, notice, onLoggedIn, onGo }) {
 
           <div className="field">
             <div className="label-row">
-              <label htmlFor="login-password">Password</label>
-              <button type="button" className="link-btn" onClick={() => onGo('forgot')}>Forgot password?</button>
+              <label htmlFor="login-password">{t('f.password')}</label>
+              <button type="button" className="link-btn" onClick={() => onGo('forgot')}>{t('login.forgot')}</button>
             </div>
             <PasswordInput
               id="login-password"
@@ -84,33 +85,33 @@ export default function LoginPage({ headingRef, notice, onLoggedIn, onGo }) {
 
           <label className="check">
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            Keep me logged in on this device
+            {t('login.remember')}
           </label>
 
           {formError && <p className="tx-box tx-fail" role="alert">{formError}</p>}
 
           <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-            {busy ? 'Logging in…' : 'Log in'}
+            {t(busy ? 'login.busy' : 'login.title')}
           </button>
         </form>
 
         <p className="auth-switch">
-          New here?{' '}
-          <button type="button" className="link-btn" onClick={() => onGo('register')}>Create an account</button>
+          {t('login.newHere')}{' '}
+          <button type="button" className="link-btn" onClick={() => onGo('register')}>{t('login.create')}</button>
         </p>
       </div>
 
       <aside className="demo-box" aria-labelledby="demo-title">
-        <h2 id="demo-title">Demo accounts</h2>
-        <p className="muted">This is a prototype. Pick an account to fill the form, then press Log in.</p>
+        <h2 id="demo-title">{t('login.demoTitle')}</h2>
+        <p className="muted">{t('login.demoText')}</p>
         <ul className="demo-list">
           {DEMO_ACCOUNTS.map((d) => (
             <li key={d.email}>
               <button type="button" className="demo-item" onClick={() => fill(d)}>
-                <span className={'role-chip role-' + d.role}>{ROLE_LABEL[d.role]}</span>
+                <span className={'role-chip role-' + d.role}>{t('role.' + d.role)}</span>
                 <span className="demo-cred">
                   <strong>{d.email}</strong>
-                  <small>Password: {d.password}</small>
+                  <small>{t('login.demoPassword', { pw: d.password })}</small>
                 </span>
               </button>
             </li>

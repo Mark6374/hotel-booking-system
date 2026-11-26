@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n/index.js';
 
 /* Password field with a show/hide toggle. */
 export default function PasswordInput({ id, value, onChange, autoComplete, invalid, describedBy }) {
@@ -18,10 +19,10 @@ export default function PasswordInput({ id, value, onChange, autoComplete, inval
         type="button"
         className="pw-toggle"
         aria-pressed={shown}
-        aria-label={shown ? 'Hide password' : 'Show password'}
+        aria-label={t(shown ? 'pw.hideLabel' : 'pw.showLabel')}
         onClick={() => setShown(!shown)}
       >
-        {shown ? 'Hide' : 'Show'}
+        {t(shown ? 'pw.hide' : 'pw.show')}
       </button>
     </div>
   );

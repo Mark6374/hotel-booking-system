@@ -1,6 +1,8 @@
 /* Thin client for the Django REST backend (see backend/AUTH.md).
    Auth: "Authorization: Bearer <token>" from /api/auth/login|register. */
 
+import { t, serverText } from './i18n/index.js';
+
 const BASE = import.meta.env.VITE_API_URL || '/api';
 const TOKEN_KEY = 'juniper-court-token-v2';
 
@@ -25,15 +27,16 @@ export class ApiError extends Error {
 }
 
 /* Turns DRF error bodies ({detail}, {field: [msg]}, {non_field_errors: [..]}) into one sentence. */
+/* Server texts are English; serverText() translates the ones the site knows. */
 function messageFrom(data, status) {
-  if (!data || typeof data !== 'object') return status ? 'Server error (' + status + ').' : 'Server error.';
-  if (typeof data.detail === 'string') return data.detail;
+  if (!data || typeof data !== 'object') return t('srv.error', { code: status || '' });
+  if (typeof data.detail === 'string') return serverText(data.detail);
   const parts = [];
   Object.keys(data).forEach((k) => {
-    const v = Array.isArray(data[k]) ? data[k].join(' ') : typeof data[k] === 'string' ? data[k] : '';
-    if (v) parts.push(v);
+    const list = Array.isArray(data[k]) ? data[k] : typeof data[k] === 'string' ? [data[k]] : [];
+    list.forEach((v) => { if (typeof v === 'string' && v) parts.push(serverText(v)); });
   });
-  return parts.join(' ') || 'Request failed (' + status + ').';
+  return parts.join(' ') || t('srv.error', { code: status });
 }
 
 export async function api(path, { method = 'GET', body } = {}) {
@@ -48,7 +51,7 @@ export async function api(path, { method = 'GET', body } = {}) {
   try {
     res = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
   } catch (e) {
-    throw new ApiError('Cannot reach the server. Is the Django backend running on port 8000?', 0, null);
+    throw new ApiError(t('srv.unreachable'), 0, null);
   }
   if (res.status === 204) return null;
   let data = null;

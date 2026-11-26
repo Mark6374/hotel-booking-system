@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { getDb } from '../db.js';
+import { getDb, typeName } from '../db.js';
+import { t } from '../i18n/index.js';
 import { allReviews, moderateReview } from '../reviews.js';
 import { toast } from '../toast.js';
 import StatusBadge from './StatusBadge.jsx';
 import { ReviewItem } from './RoomDetailsModal.jsx';
 
 const FILTERS = [
-  { id: 'Pending', label: 'Waiting for approval' },
-  { id: 'Published', label: 'Published' },
-  { id: 'Hidden', label: 'Rejected / hidden' },
-  { id: 'all', label: 'All' }
+  { id: 'Pending', label: 'mod.f.pending' },
+  { id: 'Published', label: 'mod.f.published' },
+  { id: 'Hidden', label: 'mod.f.hidden' },
+  { id: 'all', label: 'staff.f.all' }
 ];
 
 /* Admin moderation: a guest's review appears on the website only after it is approved here.
@@ -42,30 +43,30 @@ export default function AdminReviews({ onCount }) {
   }
 
   if (error) return <p className="tx-box tx-fail" role="alert">{error}</p>;
-  if (!list) return <p className="muted">Loading reviews…</p>;
+  if (!list) return <p className="muted">{t('rev.loading')}</p>;
 
   const db = getDb();
   const typeOfRoom = (roomId) => {
     const room = db.room.find((x) => x.room_id === roomId);
-    const t = room && db.room_type.find((x) => x.room_type_id === room.room_type_id);
-    return t ? t.type_name : '';
+    const rt = room && db.room_type.find((x) => x.room_type_id === room.room_type_id);
+    return typeName(rt);
   };
   const count = (id) => (id === 'all' ? list.length : list.filter((r) => r.status === id).length);
   const rows = list.filter((r) => filter === 'all' || r.status === filter);   // newest first
 
   return (
     <>
-      <p className="lead">New reviews are not shown on the website until you approve them. Rejected reviews stay in the database but nobody sees them except the author.</p>
-      <div className="chips" role="group" aria-label="Filter reviews">
+      <p className="lead">{t('mod.lead')}</p>
+      <div className="chips" role="group" aria-label={t('mod.filter')}>
         {FILTERS.map((f) => (
           <button key={f.id} type="button" className="chip" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
-            {f.label} ({count(f.id)})
+            {t(f.label)} ({count(f.id)})
           </button>
         ))}
       </div>
 
       {!rows.length ? (
-        <p className="empty">{filter === 'Pending' ? 'Nothing to check. All reviews are moderated.' : 'No reviews here.'}</p>
+        <p className="empty">{t(filter === 'Pending' ? 'mod.nothing' : 'mod.empty')}</p>
       ) : (
         <div className="review-list">
           {rows.map((r) => (
@@ -76,18 +77,18 @@ export default function AdminReviews({ onCount }) {
                 {r.status === 'Pending' && (
                   <>
                     <button type="button" className="btn btn-sm btn-primary" disabled={busy === r.review_id}
-                      onClick={() => setStatus(r, 'Published', `Review of room ${r.room_number} approved. It is on the website now.`)}>Approve</button>
+                      onClick={() => setStatus(r, 'Published', t('mod.approved', { room: r.room_number }))}>{t('mod.approve')}</button>
                     <button type="button" className="btn btn-sm btn-danger" disabled={busy === r.review_id}
-                      onClick={() => setStatus(r, 'Hidden', `Review of room ${r.room_number} rejected.`, 'info')}>Reject</button>
+                      onClick={() => setStatus(r, 'Hidden', t('mod.rejected', { room: r.room_number }), 'info')}>{t('mod.reject')}</button>
                   </>
                 )}
                 {r.status === 'Published' && (
                   <button type="button" className="btn btn-sm btn-danger" disabled={busy === r.review_id}
-                    onClick={() => setStatus(r, 'Hidden', `Review of room ${r.room_number} hidden from the website.`, 'info')}>Hide</button>
+                    onClick={() => setStatus(r, 'Hidden', t('mod.hidden', { room: r.room_number }), 'info')}>{t('mod.hide')}</button>
                 )}
                 {r.status === 'Hidden' && (
                   <button type="button" className="btn btn-sm btn-ghost" disabled={busy === r.review_id}
-                    onClick={() => setStatus(r, 'Published', `Review of room ${r.room_number} published.`)}>Publish</button>
+                    onClick={() => setStatus(r, 'Published', t('mod.published', { room: r.room_number }))}>{t('mod.publish')}</button>
                 )}
               </div>
             </ReviewItem>

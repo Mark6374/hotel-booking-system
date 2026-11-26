@@ -1321,3 +1321,32 @@ td .badge + .badge { margin-left: 4px; }
   .inbox-back { display: inline; }
 }
 .admin-main > .lead + .chips, .admin-main > .chips { margin: 14px 0; }
+
+/* ---------- Language switch (header) ---------- */
+.lang-switch { display: inline-flex; border: 2px solid var(--line); border-radius: 999px; overflow: hidden; flex: none; }
+.lang-switch button {
+  background: transparent; border: 0; color: var(--muted); font: inherit; font-size: 0.8rem; font-weight: 700;
+  padding: 7px 9px; cursor: pointer; letter-spacing: 0.03em;
+}
+.lang-switch button + button { border-left: 1px solid var(--line); }
+.lang-switch button:hover { color: var(--ink); background: var(--tint); }
+.lang-switch button[aria-pressed="true"] { background: var(--primary-fill); color: #fff; }
+
+/* The header uses more of the screen than the page body, so the menu fits on one line
+   in all three languages (Russian and Kazakh labels are longer). */
+.header-inner { max-width: 1320px; gap: 12px; }
+#main-nav { gap: 12px; }
+.nav-btn { padding: 8px 10px; white-space: nowrap; }
+.nav-group { flex-wrap: nowrap; }
+.user-pill-text { white-space: nowrap; }
+/* Same as the phone menu (max-width: 900px), used when the menu does not fit on a wider screen. */
+.site-header.compact .menu-toggle { display: inline-block; }
+.site-header.compact .header-inner { flex-wrap: wrap; }
+.site-header.compact #main-nav { display: none; flex-basis: 100%; flex-direction: column; align-items: stretch; gap: 12px; padding-top: 8px; }
+.site-header.compact #main-nav.open { display: flex; }
+.site-header.compact .nav-group { flex-direction: column; align-items: stretch; }
+.site-header.compact .nav-user { flex-direction: row; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; flex-wrap: wrap; }
+.site-header.compact .nav-btn { text-align: left; }
+.site-header.compact .theme-btn { width: auto; height: auto; padding: 5px 12px; }
+.site-header.compact .theme-btn-text { display: inline; }
+.nav-user .btn, .brand { white-space: nowrap; }

@@ -5,6 +5,8 @@
    to the backend first and then the cache is reloaded. */
 
 import { api } from './api.js';
+import { t, has } from './i18n/index.js';
+import { dateShort } from './i18n/dates.js';
 
 const ACTIVE = ['Confirmed', 'CheckedIn'];
 const TABLES = ['guest', 'room_type', 'room', 'booking', 'booking_room', 'payment'];
@@ -29,15 +31,26 @@ export function nights(ci, co) {
 }
 
 export function fmtDate(iso) {
-  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-    .format(new Date(iso + 'T00:00:00Z'));
+  return dateShort(iso);
+}
+
+/* Room types live in the database in English; the site shows them in the chosen language. */
+export function typeName(type) {
+  if (!type) return t('common.room');
+  const key = 'roomType.' + type.type_name;
+  return has(key) ? t(key) : type.type_name;
+}
+
+export function typeDesc(type) {
+  if (!type) return '';
+  const key = 'roomDesc.' + type.type_name;
+  return has(key) ? t(key) : type.description;
 }
 
 export function money(n) {
   return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
-export function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
 
 export function ref(bookingId) { return 'HB-' + String(bookingId).padStart(4, '0'); }
 
@@ -136,10 +149,10 @@ export function typeOf(d, room) {
 }
 
 export function validateSearch(s) {
-  if (!s.ci || !s.co) return 'Choose both a check-in and a check-out date.';
-  if (s.ci < todayISO()) return 'Check-in cannot be in the past.';
-  if (s.co <= s.ci) return 'Check-out must be after check-in.';
-  if (!(s.guests >= 1 && s.guests <= 10)) return 'Guests must be between 1 and 10.';
+  if (!s.ci || !s.co) return t('v.bothDates');
+  if (s.ci < todayISO()) return t('v.ciPast');
+  if (s.co <= s.ci) return t('v.coAfter');
+  if (!(s.guests >= 1 && s.guests <= 10)) return t('v.guests');
   return '';
 }
 
@@ -168,7 +181,7 @@ export function bookingDetails(b) {
     const room = db.room.filter((r) => r.room_id === l.room_id)[0];
     const type = room ? typeOf(db, room) : null;
     total += l.price_per_night * n;
-    return (room ? room.room_number : '?') + ' (' + (type ? type.type_name : 'Room') + ')';
+    return (room ? room.room_number : '?') + ' (' + typeName(type) + ')';
   });
   const pays = db.payment.filter((p) => p.booking_id === b.booking_id);
   const pay = pays.length ? pays[pays.length - 1] : null;
