@@ -62,7 +62,20 @@ function toAccount(a) {
   };
 }
 
-let snapshot = { ready: false, me: null, accounts: [] };
+/* ---------- "Someone tried to log in" notice (week 13) ----------
+   After a successful login the server may send security_notice:
+   { failed_attempts, last_failed_at, was_locked, last_locked_at }.
+   It is kept for this browser tab until the guest presses "It was me",
+   changes the password or logs out. */
+const NOTICE_KEY = 'juniper-court-security-notice';
+function readNotice() {
+  try { return JSON.parse(sessionStorage.getItem(NOTICE_KEY) || 'null'); } catch (e) { return null; }
+}
+function saveNotice(n) {
+  try { if (n) sessionStorage.setItem(NOTICE_KEY, JSON.stringify(n)); else sessionStorage.removeItem(NOTICE_KEY); } catch (e) { /* private mode */ }
+}
+
+let snapshot = { ready: false, me: null, accounts: [], securityNotice: readNotice() };
 const listeners = new Set();
 
 function set(patch) {
@@ -114,7 +127,10 @@ async function startSession(token, remember) {
 
 export async function login(email, password, remember) {
   const r = await api('/auth/login/', { method: 'POST', body: { email: email.trim(), password } });
-  return startSession(r.token, remember);
+  const me = await startSession(r.token, remember);
+  saveNotice(r.security_notice || null);          // week 13
+  set({ securityNotice: r.security_notice || null });
+  return me;
 }
 
 export async function register(form) {
@@ -136,7 +152,8 @@ export async function register(form) {
 /* Tokens are stateless on the server, so logging out = forgetting the token. */
 export function logout() {
   setToken('');
-  set({ me: null, accounts: [] });
+  saveNotice(null);
+  set({ me: null, accounts: [], securityNotice: null });
   reloadDb(); // forget the private data of the account that logged out
 }
 
@@ -153,6 +170,13 @@ export async function updateProfile(id, fields) {
 
 export async function changePassword(id, oldPw, newPw) {
   await api('/account/password/', { method: 'POST', body: { old_password: oldPw, new_password: newPw } });
+  dismissSecurityNotice(); // week 13: the password is new, the warning is done
+}
+
+/* "It was me" on the security notice (week 13) */
+export function dismissSecurityNotice() {
+  saveNotice(null);
+  set({ securityNotice: null });
 }
 
 /* ---------- Admin ---------- */

@@ -318,7 +318,7 @@ class AccountAdminView(APIView):
             return error
         if request.data.get('unlock'):
             # admin removes the 15-minute login lock (login_lock.py)
-            login_lock.clear(g)
+            login_lock.unlock(g)  # week 13: keep the notice for the owner
             return Response(account_payload(g))
         role, active = role_info(g)
         if 'role' in request.data:

@@ -5,7 +5,7 @@ import AssistantChat from './AssistantChat.jsx';
 import { t } from '../i18n/index.js';
 
 /* Floating chat button for guests (and staff). Two tabs: the AI assistant (no login needed)
-   and the live support chat with the front office. Admins answer in the Admin panel. */
+   and the live support chat with the front office. Admins and staff answer from the inbox in their own pages. */
 export default function ChatWidget({ me, onGo, onPick }) {
   const chat = useSyncExternalStore(subscribeChat, getChat);
   const [open, setOpen] = useState(false);
@@ -28,7 +28,7 @@ export default function ChatWidget({ me, onGo, onPick }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
-  if (me && me.role === 'admin') return null;
+  if (me && (me.role === 'admin' || me.role === 'staff')) return null;
   const unread = me ? chat.unread : 0;
   const online = chat.status === 'online';
 

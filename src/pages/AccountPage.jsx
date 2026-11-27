@@ -378,8 +378,10 @@ function Security({ me }) {
   );
 }
 
-export default function AccountPage({ headingRef, me, onGo }) {
+export default function AccountPage({ headingRef, me, onGo, openTab }) {
   const [tab, setTab] = useState('bookings');
+  // week 13: "Change password" on the security notice opens the Password tab
+  useEffect(() => { if (openTab && openTab.tab) setTab(openTab.tab); }, [openTab]);
 
   return (
     <>

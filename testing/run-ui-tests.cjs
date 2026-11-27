@@ -274,7 +274,8 @@ const TESTS = [
     await page.locator('form.auth-form').getByRole('button', { name: 'Log in' }).click();
     await page.waitForSelector('.tx-fail');
     const e = clean(await page.textContent('.tx-fail'));
-    return { actual: e, pass: e === 'Invalid email or password.' };
+    // week 13: the message also tells how many tries are left
+    return { actual: e, pass: e === 'Invalid email or password. 4 attempts left before the account is locked.' };
   }],
 
   ['UI-14', 'Log in and see my bookings', null, async (page) => {
@@ -465,8 +466,10 @@ TESTS.push(
   ['UI-27', '4 wrong passwords do not lock the account', null, async (page) => {
     const errs = await wrongTimes(page, 4);
     const right = await tryLogin(page, SALT.email, SALT.password);
-    return { actual: `4 × "${errs[0]}", then right password: ${right}`,
-      pass: errs.every((e) => e === 'Invalid email or password.') && right === 'LOGGED IN' };
+    // week 13: every wrong password also says how many tries are left
+    const want = [4, 3, 2, 1].map((n) => `Invalid email or password. ${n} attempt${n === 1 ? '' : 's'} left before the account is locked.`);
+    return { actual: `4 wrong: "${errs[0].slice(0, 40)}…" (4, 3, 2, 1 left), then right password: ${right}`,
+      pass: JSON.stringify(errs) === JSON.stringify(want) && right === 'LOGGED IN' };
   }],
 
   ['UI-28', '5th wrong password locks the account for 15 minutes', null, async (page, t) => {
@@ -495,9 +498,13 @@ TESTS.push(
     return { actual: `Saltanat locked, Daniel: ${other}`, pass: other === 'LOGGED IN' };
   }],
 
-  ['UI-31', 'Unknown e-mail: always the usual message, no lock', null, async (page) => {
-    const errs = await wrongTimes(page, 6, 'nobody@example.com');
-    return { actual: `6 × "${errs[5]}"`, pass: errs.every((e) => e === 'Invalid email or password.') };
+  ['UI-31', 'Unknown e-mail: the same answers as a real account', null, async (page) => {
+    // week 13: counter and lock look the same, so nobody can tell which e-mails exist
+    const fake = await wrongTimes(page, 5, 'nobody@example.com');
+    const real = await wrongTimes(page, 5, ACCOUNTS.daniel.email);
+    const same = JSON.stringify(fake) === JSON.stringify(real);
+    return { actual: same ? 'unknown e-mail and Daniel got the same 5 answers (4…1 left, then locked)' : `DIFFERENT: ${fake[0]} / ${real[0]}`,
+      pass: same && fake[4].startsWith(LOCK_MSG) };
   }],
 
   ['UI-32', 'E-mail in capital letters counts for the same account', null, async (page) => {
@@ -542,6 +549,79 @@ TESTS.push(
     await go(page, 'admin');
     const h = await heading(page);
     return { actual: `guest opens Admin: "${h}"`, pass: h === 'This page is not for your account' };
+  }],
+);
+
+// ================= Week 13: attempts counter + "someone tried to log in" notice =================
+
+async function noticeAfterLogin(page, email, password) {
+  const res = await tryLogin(page, email, password);
+  if (res !== 'LOGGED IN') return { res, text: '' };
+  const box = page.locator('.security-notice');
+  const shown = await box.waitFor({ timeout: 4000 }).then(() => true).catch(() => false);
+  return { res, text: shown ? clean(await box.textContent()) : '' };
+}
+
+TESTS.push(
+  ['UI-37', 'Wrong password shows how many tries are left', null, async (page, t) => {
+    const e = (await wrongTimes(page, 3))[2];
+    await t.shot();
+    return { actual: `3rd wrong password: "${e}"`,
+      pass: e === 'Invalid email or password. 2 attempts left before the account is locked.' };
+  }],
+
+  ['UI-38', 'Counter in Russian', null, async (page) => {
+    await go(page, 'login');
+    await page.evaluate(() => localStorage.setItem('juniper-court-lang', 'ru'));
+    await go(page, 'login');
+    await pace();
+    await page.fill('#login-email', SALT.email);
+    await page.fill('#login-password', 'wrong-pass1');
+    await page.locator('form.auth-form button[type=submit]').click();
+    await page.waitForSelector('.tx-fail');
+    const e = clean(await page.textContent('.tx-fail'));
+    return { actual: e, pass: e === 'Неверный email или пароль. До блокировки осталось 4 попытки.' };
+  }],
+
+  ['UI-39', 'Notice after login: someone typed wrong passwords', null, async (page, t) => {
+    await wrongTimes(page, 2);
+    const { res, text } = await noticeAfterLogin(page, SALT.email, SALT.password);
+    await t.shot();
+    return { actual: text ? text.slice(0, 120) + '…' : `no notice (${res})`,
+      pass: text.startsWith('Someone tried to log in to your account') && text.includes('2 wrong passwords') };
+  }],
+
+  ['UI-40', '"Change password" opens the Password tab', null, async (page, t) => {
+    await wrongTimes(page, 2);
+    await noticeAfterLogin(page, SALT.email, SALT.password);
+    await page.locator('.security-notice').getByRole('button', { name: 'Change password' }).click();
+    await page.waitForSelector('#s-old');
+    const selected = await page.getAttribute('#tab-security', 'aria-selected');
+    await t.shot();
+    return { actual: `page "${await heading(page)}", Password tab selected: ${selected}`, pass: selected === 'true' };
+  }],
+
+  ['UI-41', '"It was me" hides the notice; it does not come back', null, async (page) => {
+    await wrongTimes(page, 2);
+    await noticeAfterLogin(page, SALT.email, SALT.password);
+    await page.locator('.security-notice').getByRole('button', { name: 'It was me' }).click();
+    const gone = (await page.locator('.security-notice').count()) === 0;
+    await page.locator('nav').getByRole('button', { name: /Log out/ }).click();
+    const again = await noticeAfterLogin(page, SALT.email, SALT.password);
+    return { actual: `after "It was me": ${gone ? 'hidden' : 'STILL SHOWN'}; next login: ${again.text ? 'notice AGAIN' : 'no notice'}`,
+      pass: gone && !again.text };
+  }],
+
+  ['UI-42', 'Notice says the account was locked (after admin unlock)', null, async (page, t) => {
+    await wrongTimes(page, 5);
+    const admin = await t.as('admin');
+    await adminUsers(admin);
+    await admin.locator('table tbody tr', { hasText: SALT.email }).getByRole('button', { name: 'Unlock login' }).click();
+    await toastText(admin, /unlocked/);
+    const { text } = await noticeAfterLogin(page, SALT.email, SALT.password);
+    await page.screenshot({ path: path.join(SHOTS, 'UI-42.png') }); t.shotTaken = true;
+    return { actual: text ? text.slice(0, 140) + '…' : 'no notice',
+      pass: text.includes('5 wrong passwords') && text.includes('locked for 15 minutes') };
   }],
 );
 

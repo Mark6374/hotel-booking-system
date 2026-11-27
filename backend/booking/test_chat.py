@@ -163,9 +163,20 @@ class CustomerChatTests(ChatTestBase):
             self.assertEqual(self.a.post(MESSAGES, {'body': 'hi'}, format='json').status_code, 429)
         self.assertEqual(Conversation.objects.count(), 0)
 
-    def test_staff_role_chats_like_a_customer(self):
-        self.assertEqual(self.stf.post(MESSAGES, {'body': 'hello'}, format='json').status_code, 201)
-        self.assertEqual(self.stf.get(INBOX).status_code, 403)
+    def test_staff_answers_from_the_inbox_and_has_no_customer_chat(self):
+        self.assertEqual(self.stf.post(MESSAGES, {'body': 'hello'}, format='json').status_code, 403)
+        self.assertEqual(self.stf.get(INBOX).status_code, 200)
+        self.assertEqual(Conversation.objects.count(), 0)
+
+    def test_staff_replies_to_a_customer(self):
+        self.a.post(MESSAGES, {'body': 'is breakfast included?'}, format='json')
+        cid = Conversation.objects.get().conversation_id
+        r = self.stf.post(admin_messages(cid), {'body': 'Yes, 7:00-10:30.'}, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(self.stf.post('/api/chat/admin/conversations/%d/read/' % cid).data, {'marked': 1})
+        bodies = [m['body'] for m in self.a.get(MESSAGES).data['results']]
+        self.assertIn('Yes, 7:00-10:30.', bodies)
+        self.assertEqual(self.stf.get('/api/chat/unread/').data, {'role': 'admin', 'unread': 0})
 
     def test_admin_has_no_customer_chat(self):
         self.assertEqual(self.adm.post(MESSAGES, {'body': 'hi'}, format='json').status_code, 403)
@@ -278,21 +289,21 @@ class AdminChatTests(ChatTestBase):
         Conversation.objects.create(guest=self.amina)
         self.assertEqual(self.adm.get(INBOX).data['results'], [])
 
-    def test_only_admin_role_may_use_the_inbox(self):
+    def test_only_support_roles_may_use_the_inbox(self):
         self.start(self.a, 'hi')
         cid = Conversation.objects.get().conversation_id
-        for c in (self.a, self.stf):
+        for c in (self.a,):
             self.assertEqual(c.get(INBOX).status_code, 403)
             self.assertEqual(c.get(admin_messages(cid)).status_code, 403)
             self.assertEqual(c.post('/api/chat/admin/conversations/%d/read/' % cid).status_code, 403)
         self.assertEqual(APIClient().get(INBOX).status_code, 401)
 
-    def test_support_roles_setting_can_include_staff(self):
+    def test_support_roles_setting_can_be_admin_only(self):
         self.start(self.a, 'hi')
-        with mock.patch.object(chat, 'SUPPORT_ROLES', ('staff', 'admin')):
+        with mock.patch.object(chat, 'SUPPORT_ROLES', ('admin',)):
             from . import chat_api
-            with mock.patch.object(chat_api.IsChatSupport, 'allowed', ('staff', 'admin')):
-                self.assertEqual(self.stf.get(INBOX).status_code, 200)
+            with mock.patch.object(chat_api.IsChatSupport, 'allowed', ('admin',)):
+                self.assertEqual(self.stf.get(INBOX).status_code, 403)
 
     # ------------------------------------------------------------ read marks and badges
 

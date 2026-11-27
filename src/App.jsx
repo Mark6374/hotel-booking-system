@@ -5,7 +5,7 @@ import { todayISO, addDays, reloadDb, ref } from './db.js';
 import { loadReviewSummary } from './reviews.js';
 import { currentTheme, toggleTheme, subscribeTheme } from './theme.js';
 import { toast } from './toast.js';
-import { logout, canOpen, homeFor, restoreSession, ACCESS } from './auth.js';
+import { logout, canOpen, homeFor, restoreSession, ACCESS, dismissSecurityNotice } from './auth.js';
 import HomePage from './pages/HomePage.jsx';
 import BookPage from './pages/BookPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
@@ -25,6 +25,7 @@ import Avatar from './components/Avatar.jsx';
 import { startChat, stopChat, subscribeChat, getChat } from './chat.js';
 import { t, getLang, subscribeLang } from './i18n/index.js';
 import LangSwitch from './components/LangSwitch.jsx';
+import SecurityNotice from './components/SecurityNotice.jsx';
 
 const VIEWS = ['home', 'book', 'checkout', 'confirm', 'about', 'login', 'register', 'forgot', 'reset', 'account', 'staff', 'admin'];
 
@@ -49,7 +50,8 @@ function defaultDates() {
 
 export default function App() {
   const data = useDb(); // re-render on any booking-data change
-  const { me, ready } = useAuth();
+  const { me, ready, securityNotice } = useAuth();
+  const [accountTab, setAccountTab] = useState(null); // week 13: which account tab to open
   const dd = defaultDates();
 
   const [view, setView] = useState(readHash);
@@ -211,7 +213,7 @@ export default function App() {
             onViewMine={() => go('account')} onBookAgain={() => go('book')} />
         );
       case 'account':
-        return <AccountPage key={me.account_id} headingRef={h} me={me} onGo={go} />;
+        return <AccountPage key={me.account_id} headingRef={h} me={me} onGo={go} openTab={accountTab} />;
       case 'staff':
         return <StaffPage headingRef={h} me={me} staffDates={staffDates} setStaffDates={setStaffDates} />;
       case 'admin':
@@ -273,7 +275,7 @@ export default function App() {
               {navBtn('book', t('nav.book'))}
               {navBtn('about', t('nav.about'))}
               {me && navBtn('account', t('nav.account'))}
-              {isStaff && navBtn('staff', t('nav.staff'))}
+              {isStaff && navBtn('staff', t('nav.staff'), isAdmin ? 0 : chat.unreadTotal)}
               {isAdmin && navBtn('admin', t('nav.admin'), chat.unreadTotal)}
             </div>
 
@@ -312,6 +314,13 @@ export default function App() {
       )}
 
       <main id="main" className={view === 'home' && !needsLogin ? 'main-home' : ''}>
+        {me && securityNotice && (
+          <SecurityNotice
+            notice={securityNotice}
+            onChangePassword={() => { setAccountTab({ tab: 'security', at: Date.now() }); go('account'); }}
+            onDismiss={dismissSecurityNotice}
+          />
+        )}
         {renderView()}
       </main>
 

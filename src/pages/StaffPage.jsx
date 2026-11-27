@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import {
   getDb, blockedRoomIds, typeOf, bookingDetails, fmtDate, ref, todayISO, addDays,
   toggleRoomMaintenance, checkInBooking, checkOutBooking, cancelBooking, typeName
@@ -6,6 +6,8 @@ import {
 import { t } from '../i18n/index.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import { toast } from '../toast.js';
+import { subscribeChat, getChat } from '../chat.js';
+import AdminChat from '../components/AdminChat.jsx';
 
 const FILTERS = [
   { id: 'all', label: 'staff.f.all' },
@@ -22,6 +24,8 @@ export default function StaffPage({ headingRef, me, staffDates, setStaffDates })
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
+  const [tab, setTab] = useState('desk');          // 'desk' | 'chat'
+  const chat = useSyncExternalStore(subscribeChat, getChat);
 
   const s = staffDates;
   const datesOk = s.ci && s.co && s.co > s.ci;
@@ -73,6 +77,22 @@ export default function StaffPage({ headingRef, me, staffDates, setStaffDates })
         <p className="lead">{t('staff.lead', { date: fmtDate(today) })}</p>
       </div>
 
+      <div className="tabs" role="tablist" aria-label={t('nav.staff')}>
+        {[{ id: 'desk', label: t('staff.tabDesk') }, { id: 'chat', label: t('admin.s.chat'), badge: chat.unreadTotal }].map((x) => (
+          <button key={x.id} type="button" role="tab" id={'staff-tab-' + x.id} aria-selected={tab === x.id}
+            aria-controls={'staff-panel-' + x.id} className="tab" onClick={() => setTab(x.id)}>
+            {x.label}
+            {x.badge > 0 && <span className="chat-badge static" aria-label={t('common.nNew', { n: x.badge })}>{x.badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'chat' ? (
+        <div role="tabpanel" id="staff-panel-chat" aria-labelledby="staff-tab-chat" className="tab-panel">
+          <AdminChat />
+        </div>
+      ) : (
+      <div role="tabpanel" id="staff-panel-desk" aria-labelledby="staff-tab-desk" className="tab-panel">
       <div className="stat-grid">
         <div className="stat"><span>{t('staff.f.arrivals')}</span><strong>{arrivals.length}</strong></div>
         <div className="stat"><span>{t('staff.f.inhouse')}</span><strong>{inhouse.length}</strong></div>
@@ -174,6 +194,8 @@ export default function StaffPage({ headingRef, me, staffDates, setStaffDates })
         })}
       </div>
 
+      </div>
+      )}
     </>
   );
 }

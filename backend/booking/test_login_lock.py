@@ -118,11 +118,13 @@ class LoginLockTests(TransactionTestCase):
         self.wrong(1, 'AMINA@EXAMPLE.COM')
         self.assertEqual(self.wrong(1, 'Amina@Example.com')[0].status_code, 423)
 
-    def test_08_unknown_email_is_not_stored_and_gets_the_usual_answer(self):
-        for r in self.wrong(6, 'nobody@example.com'):
-            self.assertEqual(r.status_code, 401)
-            self.assertEqual(r.data['detail'], 'Invalid email or password.')
-        self.assertEqual(LoginLock.objects.count(), 0)
+    def test_08_unknown_email_gets_the_same_answers_and_is_not_stored(self):
+        # week 13: same counter and lock as a real account, so nobody can tell
+        # which e-mails exist; nothing is written to the database for it
+        real = [(r.status_code, r.data['detail']) for r in self.wrong(6, 'amina@example.com')]
+        fake = [(r.status_code, r.data['detail']) for r in self.wrong(6, 'nobody@example.com')]
+        self.assertEqual(real, fake)
+        self.assertEqual(LoginLock.objects.filter(guest__email='nobody@example.com').count(), 0)
 
     def test_09_lock_is_per_account(self):
         self.wrong(5)

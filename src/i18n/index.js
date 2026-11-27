@@ -141,6 +141,7 @@ const SERVER = {
 /* Texts with numbers or names inside */
 const PATTERNS = [
   [/^Too many wrong passwords\. This account is locked for (\d+) more minutes?\./, (m) => tn('srv.locked', Number(m[1]))],
+  [/^(\d+) attempts? left before the account is locked\.$/, (m) => tn('srv.attemptsLeft', Number(m[1]))], // week 13
   [/^Room (\S+) is closed for maintenance\.$/, (m) => t('srv.roomClosed', { room: m[1] })],
   [/^Room (\S+) was just booked by someone else for overlapping dates\.$/, (m) => t('srv.roomTaken', { room: m[1] })],
   [/^Room (\S+) sleeps at most (\d+)\.$/, (m) => t('srv.roomCap', { room: m[1], n: m[2] })],

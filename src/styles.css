@@ -1372,3 +1372,16 @@ td .badge + .badge { margin-left: 4px; }
 .ai-offer small { display: block; color: var(--muted); font-size: 0.8rem; }
 .ai-typing { font-size: 0.88rem; }
 .ai-foot { margin: 0; padding: 0 12px 8px; font-size: 0.75rem; color: var(--muted); background: var(--surface); }
+
+/* ---------- "Someone tried to log in" notice (week 13) ---------- */
+.security-notice {
+  max-width: 1120px; margin: 20px auto 0; padding: 16px 20px;
+  display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  border-radius: var(--radius); background: var(--bad-bg); color: var(--bad-ink);
+  border: 1px solid var(--bad);
+}
+.security-notice h2 { margin: 0 0 4px; font-size: 1.1rem; color: var(--bad-ink); }
+.security-notice p { margin: 2px 0; }
+.security-notice-hint { font-weight: 600; }
+.security-notice-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 1160px) { .security-notice { margin: 16px 16px 0; } }

@@ -9,7 +9,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src'
 const NS = ['ai', 'common', 'nav', 'theme', 'lang', 'toast', 'gate', 'notice', 'net', 'footer', 'home', 'search', 'room', 'price',
   'book', 'sum', 'n', 'pay', 'v', 'f', 'method', 'log', 'confirm', 'bk', 'forbidden', 'pw', 'about', 'hotel', 'map', 'stars',
   'reg', 'reset', 'login', 'acc', 'photo', 'rev', 'staff', 'th', 'admin', 'mod', 'chat', 'cal', 'status', 'role', 'srv',
-  'roomType', 'roomDesc', 'meta'];
+  'roomType', 'roomDesc', 'meta', 'sec'];
 const keyRe = new RegExp(`'((?:${NS.join('|')})\\.[A-Za-z0-9_.]+)'(?!\\s*\\+)`, 'g');
 
 // keys built at run time: 'status.' + x and so on

@@ -27,8 +27,8 @@ from django.db.models.lookups import GreaterThanOrEqual, LessThanOrEqual
 
 logger = logging.getLogger(__name__)
 
-# Who answers the customers. Add 'staff' here to let the front desk use the inbox as well.
-SUPPORT_ROLES = ('admin',)
+# Who answers the customers: the front desk (staff) and the admins share one inbox.
+SUPPORT_ROLES = ('staff', 'admin')
 
 MAX_BODY_LENGTH = 2000
 MESSAGES_PER_MINUTE = 30            # per account; REST and WebSocket share the same counter

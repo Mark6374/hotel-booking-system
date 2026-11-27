@@ -71,7 +71,7 @@ export function startChat(me) {
   stopChat();
   if (!me) return;
   wantOpen = true;
-  state = { ...empty(), me: me.account_id, role: me.role === 'admin' ? 'admin' : 'customer', status: 'connecting' };
+  state = { ...empty(), me: me.account_id, role: (me.role === 'admin' || me.role === 'staff') ? 'admin' : 'customer', status: 'connecting' };
   listeners.forEach((fn) => fn());
   connect();
 }
@@ -255,7 +255,9 @@ export async function loadInbox({ q = '', unread = false } = {}) {
   if (q.trim()) params.set('q', q.trim());
   if (unread) params.set('unread', '1');
   const r = await api('/chat/admin/conversations/?' + params.toString());
-  set({ inbox: r.results, inboxLoaded: true, unreadTotal: r.unread_total });
+  // the inbox list sends unread as a number; message events send {for_admin, for_customer}
+  const rows = r.results.map((row) => (typeof row.unread === 'number' ? { ...row, unread: { for_admin: row.unread, for_customer: 0 } } : row));
+  set({ inbox: rows, inboxLoaded: true, unreadTotal: r.unread_total });
   return r;
 }
 
@@ -275,7 +277,7 @@ async function catchUpThread(id) {
   const th = state.threads[id];
   if (!th || !th.loaded) return;
   try {
-    const r = await api('/chat/admin/conversations/' + id + '/messages/?after=' + lastId(t.messages));
+    const r = await api('/chat/admin/conversations/' + id + '/messages/?after=' + lastId(th.messages));
     let list = state.threads[id].messages;
     r.results.forEach((m) => { list = merge(list, m); });
     setThread(id, { messages: list });

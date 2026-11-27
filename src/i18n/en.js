@@ -432,6 +432,7 @@ export default {
   'staff.noMatch': 'No bookings match.',
   'staff.checkIn': 'Check in',
   'staff.checkOut': 'Check out',
+  'staff.tabDesk': 'Bookings and rooms',
   'staff.rooms': 'Rooms',
   'staff.from': 'From',
   'staff.to': 'To',
@@ -592,5 +593,21 @@ export default {
   'srv.locked': {
     one: 'Too many wrong passwords. This account is locked for {n} more minute. Try again later or reset your password.',
     other: 'Too many wrong passwords. This account is locked for {n} more minutes. Try again later or reset your password.'
-  }
+  },
+
+  // ---------- week 13: attempts counter and "someone tried to log in" notice ----------
+  'srv.attemptsLeft': {
+    one: '{n} attempt left before the account is locked.',
+    other: '{n} attempts left before the account is locked.'
+  },
+  'sec.title': 'Someone tried to log in to your account',
+  'sec.attempts': {
+    one: '{n} wrong password was typed for your account since your last login.',
+    other: '{n} wrong passwords were typed for your account since your last login.'
+  },
+  'sec.lastAt': 'The last try was on {when}.',
+  'sec.wasLocked': 'Because of this the account was locked for 15 minutes ({when}).',
+  'sec.hint': 'If this was not you, change your password now.',
+  'sec.change': 'Change password',
+  'sec.itWasMe': 'It was me'
 };

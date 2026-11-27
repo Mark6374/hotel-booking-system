@@ -120,8 +120,9 @@ class LoginView(APIView):
         guest = Guest.objects.filter(email__iexact=email).first()
         if guest is None or not guest.password:
             check_password(password, _DUMMY_HASH)
-            return Response({'detail': 'Invalid email or password.'},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            # week 13: same answers as for a real account (counter, then lock)
+            code, body = login_lock.unknown_email_answer(email)
+            return Response(body, status=code)
 
         # Login protection (login_lock.py): locked accounts cannot log in,
         # not even with the right password, until the 15 minutes are over.
@@ -134,11 +135,15 @@ class LoginView(APIView):
             if login_lock.register_failure(guest):
                 return Response({'detail': login_lock.locked_message(login_lock.LOCK_MINUTES), 'locked': True},
                                 status=status.HTTP_423_LOCKED)
-            return Response({'detail': 'Invalid email or password.'},
+            # week 13: tell how many tries are left before the lock
+            left = login_lock.attempts_left(guest)
+            return Response({'detail': login_lock.wrong_password_message(left), 'attempts_left': left},
                             status=status.HTTP_401_UNAUTHORIZED)
 
-        login_lock.clear(guest)
-        return Response(_auth_payload(guest))
+        # week 13: right password -> "someone tried to log in" notice (shown once)
+        payload = _auth_payload(guest)
+        payload['security_notice'] = login_lock.take_notice(guest)
+        return Response(payload)
 
 
 class MeView(APIView):
